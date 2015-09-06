@@ -1,0 +1,19 @@
+<html>
+<body>
+  <div style="width: 700px; margin:0 auto;font-size:14pt">
+    <h2 style="color:#f00">Read Before you Update - New Users ignore</h2>
+    <p style="font-size:14pt">Inside the uFlex Class file there is constant declared named salt (uFlex::salt).
+      It is strongly adviseble that you change its value as it will make your authentication systen unique. 
+      If you did changed it please follow this steps to upgrade:
+    </p>
+    <ul>
+      <li>Rename your current class.uFlex.php file to class.uFlex.old.php</li>
+      <li>Copy he new class.uFlex.php file to the desire directory</li>
+      <li>Copy the custom value of the salt constant in class.uFlex.old.php</li>
+      <li>Paste it in the new file class.uFlex.php</li>
+    </ul>
+    That Should be it.<br>
+    Failing to do this will render your existing database useless.
+  </div> 
+</body>
+</html>
