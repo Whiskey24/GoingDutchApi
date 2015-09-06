@@ -12,20 +12,70 @@ use Db;
 
 class Member
 {
-    function getGroups($uid)
+    function getGroupsBalance($uid)
     {
-        $sql = "SELECT users_groups.group_id AS gid,
-                groups.name, shortname as role, UNIX_TIMESTAMP(join_date) as join_date, groups.description,
-                (SELECT COUNT(*) FROM users_groups WHERE group_id = gid) as member_count
-                FROM `users_groups`, groups, roles
-                WHERE users_groups.group_id = groups.group_id and users_groups.role_id = roles.role_id
-                AND user_id = :uid ORDER BY groups.name ASC";
+        // TODO: rewrite for all groups that this user is in (and all user balances in these groups)
 
+        // get all the groups for this user
+        $sql = "SELECT users_groups.group_id AS gid,
+                groups.name, shortname AS role, UNIX_TIMESTAMP(join_date) AS join_date, groups.description,
+                (SELECT COUNT(*) FROM users_groups WHERE group_id = gid) AS member_count,
+                (SELECT GROUP_CONCAT(user_id) AS user_id_list FROM users_groups WHERE group_id = gid) AS user_id_list
+                FROM `users_groups`, groups, roles
+                WHERE users_groups.group_id = groups.group_id AND users_groups.role_id = roles.role_id
+                AND user_id = :uid ORDER BY groups.name ASC";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':uid' => $uid));
-        $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $groups = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $groups = $this->rearrangeArrayKey('gid', $groups);
 
-        // $groups = '{"1":{"gid":1,"title":"Group 1","subtitle":"group 1 subtitle","picture":"","created_ts":1434605924,"updated_ts":1434615924,"balance":120.03,"member_create_events":1,"member_other_expense":1,"member_add_member":1,"currency":"EUR","sort":1,"email_notify":1,"nickname":"test nick 1","members":{"1":23.23,"2":1542.36,"3":-1000,"5":565.59},"categories":{"1":{"cid":1,"title":"drinks","sort":1,"presents":0,"inactive":0,"can_delete":0},"2":{"cid":2,"title":"food","sort":2,"presents":0,"inactive":0,"can_delete":0},"3":{"cid":3,"title":"presents","sort":3,"presents":1,"inactive":0,"can_delete":0},"4":{"cid":4,"title":"tickets","sort":4,"presents":0,"inactive":0,"can_delete":1}}},"2":{"gid":2,"title":"Group 2","subtitle":"group 2 subtitle","picture":"","created_ts":1434605924,"updated_ts":1434615924,"balance":0.07,"member_create_events":1,"member_other_expense":1,"member_add_member":1,"sort":2,"email_notify":1,"nickname":"test nick 2","currency":"USD","members":{"1":-857.65,"4":452.85,"6":623.88,"7":219.08},"categories":{"1":{"cid":1,"title":"drinks","sort":1,"presents":0,"inactive":0,"can_delete":0},"2":{"cid":2,"title":"food","sort":2,"presents":0,"inactive":0,"can_delete":0},"3":{"cid":3,"title":"presents","sort":3,"presents":1,"inactive":0,"can_delete":0},"4":{"cid":4,"title":"tickets","sort":4,"presents":0,"inactive":0,"can_delete":1}}},"3":{"gid":3,"title":"Group 3","subtitle":"group 3 subtitle","picture":"","created_ts":1434605924,"updated_ts":1434615924,"balance":-123.03,"member_create_events":1,"member_other_expense":1,"member_add_member":1,"currency":"GBP","sort":3,"email_notify":1,"nickname":"test nick 3","members":{"8":853.33,"1":11000.36,"3":-5000.76,"5":-6852},"categories":{"1":{"cid":1,"title":"drinks","sort":1,"presents":0,"inactive":0,"can_delete":0},"2":{"cid":2,"title":"food","sort":2,"presents":0,"inactive":0,"can_delete":0},"3":{"cid":3,"title":"presents","sort":3,"presents":1,"inactive":0,"can_delete":0},"4":{"cid":4,"title":"tickets","sort":4,"presents":0,"inactive":0,"can_delete":1}}},"4":{"gid":4,"title":"Group 4","subtitle":"group 4 subtitle","picture":"","created_ts":1434605924,"updated_ts":1434615924,"balance":555.48,"member_create_events":1,"member_other_expense":1,"member_add_member":1,"currency":"EUR","sort":4,"email_notify":1,"nickname":"test nick 4","members":{"1":853.33,"2":200.36,"3":-2100.76,"5":-1852,"6":782.36,"7":4503.76,"8":-2386},"categories":{"1":{"cid":1,"title":"drinks","sort":1,"presents":0,"inactive":0,"can_delete":0},"2":{"cid":2,"title":"food","sort":2,"presents":0,"inactive":0,"can_delete":0},"3":{"cid":3,"title":"presents","sort":3,"presents":1,"inactive":0,"can_delete":0},"4":{"cid":4,"title":"tickets","sort":4,"presents":0,"inactive":0,"can_delete":1}}}}';
-        return json_encode($result);
+        // Get the total expense for this user in each group
+        $sql = "SELECT userid, group_id, SUM(expenses_summary.per_person) AS expense FROM (
+                  SELECT users_expenses.user_id AS userid, group_id, users_expenses.expense_id AS exid, amount AS total_amount,
+                    (SELECT COUNT(*) FROM users_expenses WHERE expense_id = exid) AS member_count,
+                    (SELECT total_amount/member_count) AS per_person
+                  FROM users_expenses, expenses WHERE users_expenses.expense_id = expenses.expense_id AND users_expenses.user_id = :uid
+                  ORDER BY userid, group_id ASC, users_expenses.expense_id ASC
+                  ) AS expenses_summary
+                GROUP BY userid, group_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':uid' => $uid));
+        $expense_summary = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $expense_summary = $this->rearrangeArrayKey('group_id', $expense_summary);
+
+        // Get the total paid by this user in each group
+        $sql = "SELECT user_id, group_id, SUM(amount) AS paid from expenses WHERE user_id = :uid GROUP BY user_id, group_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':uid' => $uid));
+        $paid_summary = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $paid_summary = $this->rearrangeArrayKey('group_id', $paid_summary);
+
+        // foreach group add expense, paid and balance
+        foreach ($groups as $group_id => $group) {
+            $expense = array_key_exists($group_id, $expense_summary) ? floatval($expense_summary[$group_id]['expense']) : 0;
+            $paid = array_key_exists($group_id, $paid_summary) ? floatval($paid_summary[$group_id]['paid']) : 0;
+            $groups[$group_id]['expense'] = $expense;
+            $groups[$group_id]['paid'] = $paid;
+            $groups[$group_id]['balance'] = $paid-$expense;
+        }
+
+        return json_encode(($groups));
     }
+
+    /*
+     * Rearranges an array of array to be indexed by one of the keys of the sub arrays
+     * If a key occurs more than once, the last one overrides the previous array with that key
+     * If the key is not found in the original sub arrays, the original array is returned
+     */
+    private function rearrangeArrayKey($keyname, $array)
+    {
+        $newArray = array();
+        foreach ($array as $item) {
+            if (array_key_exists($keyname,$item)) {
+                $newArray[$item[$keyname]] = $item;
+            }
+        }
+        return empty($newArray) ? $array : $newArray;
+    }
+
 }
