@@ -78,7 +78,7 @@ class ApiTest extends \PHPUnit_Framework_TestCase
         $content = $response->getBody()->getContents();
         $resultArray = array_shift(json_decode($content, true));
 
-        $keysToCheck = array('gid', 'currency', 'sort', 'name', 'description', 'balance', 'members');
+        $keysToCheck = array('gid', 'currency', 'sort', 'name', 'description', 'balance', 'members', 'balance');
         foreach ($keysToCheck as $key)
             $this->assertArrayHasKey($key, $resultArray);
 
