@@ -72,49 +72,21 @@ class ApiTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals($expected, $result);
     }
 
+    public function testGroupsArrayStructure()
+    {
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = array_shift(json_decode($content, true));
 
+        $keysToCheck = array('gid', 'currency', 'sort', 'name', 'description', 'balance', 'members');
+        foreach ($keysToCheck as $key)
+            $this->assertArrayHasKey($key, $resultArray);
+
+        $this->assertInternalType('array',$resultArray['members']);
+        $this->assertGreaterThan(0,count($resultArray['members']));
+        $resultArray = array_shift($resultArray['members']);
+        $keysToCheck = array('paid', 'expense', 'balance');
+        foreach ($keysToCheck as $key)
+            $this->assertArrayHasKey($key, $resultArray);
+    }
 }
-
-
-
-/*
-           $response = $this->client->get('/books', [
-                   'query' => [
-                       'bookId' => 'hitchhikers-guide-to-the-galaxy'
-                   ]
-               ]);
-
-               $this->assertEquals(200, $response->getStatusCode());
-
-               $data = $response->json();
-
-               $this->assertArrayHasKey('bookId', $data);
-               $this->assertArrayHasKey('title', $data);
-               $this->assertArrayHasKey('author', $data);
-               $this->assertEquals(42, $data['price']);
-         */
-
-
-/*
-// create our http client (Guzzle)
-$client = new Client('http://api.gdutch.dev:80', array(
-    'request.options' => array(
-        'exceptions' => false,
-    )
-));
-
-$nickname = 'ObjectOrienter'.rand(0, 999);
-$data = array(
-    'nickname' => $nickname,
-    'avatarNumber' => 5,
-    'tagLine' => 'a test dev!'
-);
-
-$request = $client->post('', null, json_encode($data));
-$response = $request->send();
-
-$this->assertEquals(201, $response->getStatusCode());
-$this->assertTrue($response->hasHeader('Location'));
-$data = json_decode($response->getBody(true), true);
-$this->assertArrayHasKey('nickname', $data);
-*/
