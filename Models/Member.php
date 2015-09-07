@@ -15,7 +15,7 @@ class Member
     function getGroupsBalance($uid)
     {
         // get all the groups for this user
-        $sql = "SELECT users_groups.group_id AS gid,
+        $sql = "SELECT users_groups.group_id AS gid, groups.currency, sort,
                 groups.name, shortname AS role, UNIX_TIMESTAMP(join_date) AS join_date, groups.description,
                 (SELECT COUNT(*) FROM users_groups WHERE group_id = gid) AS member_count,
                 (SELECT GROUP_CONCAT(user_id) AS user_id_list FROM users_groups WHERE group_id = gid) AS user_id_list
