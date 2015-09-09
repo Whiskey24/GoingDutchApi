@@ -76,17 +76,50 @@ class ApiTest extends \PHPUnit_Framework_TestCase
     {
         $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
         $content = $response->getBody()->getContents();
-        $resultArray = array_shift(json_decode($content, true));
+        $resultArray = json_decode($content, true);
 
-        $keysToCheck = array('gid', 'currency', 'sort', 'name', 'description', 'balance', 'members', 'balance');
-        foreach ($keysToCheck as $key)
-            $this->assertArrayHasKey($key, $resultArray);
+        foreach ($resultArray as $group) {
+            $keysToCheck = array('gid', 'currency', 'sort', 'name', 'description', 'balance', 'members', 'balance', 'categories');
+            foreach ($keysToCheck as $key)
+                $this->assertArrayHasKey($key, $group, "Key '{$key}' not found in array of group {$group['gid']}");
 
-        $this->assertInternalType('array',$resultArray['members']);
-        $this->assertGreaterThan(0,count($resultArray['members']));
-        $resultArray = array_shift($resultArray['members']);
-        $keysToCheck = array('paid', 'expense', 'balance');
-        foreach ($keysToCheck as $key)
-            $this->assertArrayHasKey($key, $resultArray);
+            $this->assertInternalType('array', $group['members']);
+            $this->assertGreaterThan(0, count($group['members']));
+            $resultMemberArray = $group['members'];
+            $keysToCheck = array('paid', 'expense', 'balance', 'uid');
+            $totalscheck = array('paid' => 0, 'expense' => 0, 'balance' => 0);
+            foreach ($resultMemberArray as $uid => $member) {
+                foreach ($keysToCheck as $key)
+                    $this->assertArrayHasKey($key, $member, "Key '{$key}' not found in 'members' array at index/uid {$uid} of group {$group['gid']}");
+                $msg_b = "Balance for member {$uid} in group {$group['gid']} ";
+                if ($member['paid'] > $member['expense']){
+                    $msg = $msg_b . "should be positive, but is not (paid: {$member['paid']} | expense: {$member['expense']} | balance: {$member['balance']})";
+                    $this->assertGreaterThan(0,$member['balance'], $msg);
+                } elseif ($member['paid'] < $member['expense']){
+                    $msg = $msg_b . "should be negative, but is not (paid: {$member['paid']} | expense: {$member['expense']} | balance: {$member['balance']})";
+                    $this->assertLessThan(0,$member['balance'], $msg);
+                } else {
+                    $msg = $msg_b . "should be zero, but is not (paid: {$member['paid']} | expense: {$member['expense']} | balance: {$member['balance']})";
+                    $this->assertEquals(0,$member['balance'], $msg);
+                }
+                $totalscheck['paid'] += $member['paid'];
+                $totalscheck['expense'] += $member['expense'];
+                $totalscheck['balance'] += $member['balance'];
+            }
+
+            // check group totals and balance
+            $group_balance = round($totalscheck['paid'] - $totalscheck['expense'],2);
+            $this->assertEquals(0,$group_balance, "Paid totals are not equal to expense totals for group {$group['gid']} ( total paid: {$totalscheck['paid']} | total expense: {$totalscheck['expense']})");
+            $this->assertEquals(0,round($totalscheck['balance'],2), "Total balance for group {$group['gid']} is not zero (but {$totalscheck['balance']}");
+
+            $this->assertInternalType('array', $group['categories']);
+            $this->assertGreaterThan(0, count($group['categories']));
+            $keysToCheck = array('cid', 'group_id', 'title', 'presents', 'inactive', 'can_delete', 'sort');
+            foreach ($group['categories'] as $category) {
+                foreach ($keysToCheck as $key)
+                    $this->assertArrayHasKey($key, $category, "Key '{$key}' not found in 'categories' array of group {$group['gid']}");
+            }
+        }
+
     }
 }
