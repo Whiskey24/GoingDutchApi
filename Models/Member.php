@@ -142,7 +142,7 @@ class Member
      * If a key occurs more than once, the last one overrides the previous array with that key
      * If the key is not found in the original sub arrays, the original array is returned
      */
-    private function rearrangeArrayKey($keyname, $array)
+    public static function rearrangeArrayKey($keyname, $array)
     {
         $newArray = array();
         foreach ($array as $item) {
