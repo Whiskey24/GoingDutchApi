@@ -35,13 +35,16 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
 
         // only check first 3 and last 3 entries
         $index = 0;
-        $keysToCheck = array('eid', 'etitle', 'uid', 'amount', 'ecreated', 'eupdated', 'timezoneoffset', 'event_id', 'depid', 'uids', 'deposit_count');
+        $keysToCheck = array('eid', 'etitle', 'uid', 'amount', 'ecreated', 'eupdated', 'timezoneoffset', 'event_id', 'depid', 'uids', 'deposit_count', 'gid');
         foreach ($resultArray[$this->gid] as $expense) {
             $index++;
             if ($index > 3 && $index <= (count($resultArray[$this->gid]) - 3))
                 continue;
             foreach ($keysToCheck as $key) {
                 $this->assertArrayHasKey($key, $expense, "Key '{$key}' not found in expense array #{$index} of expenses call/array");
+                if ($key == 'gid'){
+                    $this->assertEquals($this->gid, $expense[$key], "'{$key}' not equal to expected group id ({$this->gid}) in expense array #{$index} of expenses call/array");
+                }
             }
         }
     }

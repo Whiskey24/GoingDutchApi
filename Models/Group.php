@@ -15,7 +15,7 @@ class Group
 
     function getExpenses($gid)
     {
-        $sql = "SELECT expense_id AS eid, description AS etitle, user_id as uid,
+        $sql = "SELECT expense_id AS eid, group_id as gid, description AS etitle, user_id as uid,
                 amount, description as etitle, amount, UNIX_TIMESTAMP(expense_date) AS ecreated,
                 UNIX_TIMESTAMP(timestamp) AS eupdated, timezoneoffset, event_id, deposit_id as depid,
                 (SELECT GROUP_CONCAT(DISTINCT users_expenses.user_id)
