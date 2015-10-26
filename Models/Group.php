@@ -13,10 +13,8 @@ use Db;
 class Group
 {
 
-    function getExpenses($gid)
-    {
-        $sql = "SELECT expense_id AS eid, group_id as gid, description AS etitle, user_id as uid,
-                amount, description as etitle, amount, UNIX_TIMESTAMP(expense_date) AS ecreated,
+    protected $readExpensesSql = "SELECT expense_id AS eid, group_id as gid, cid, type, description AS etitle, user_id as uid,
+                amount, amount, UNIX_TIMESTAMP(expense_date) AS ecreated,
                 UNIX_TIMESTAMP(timestamp) AS eupdated, timezoneoffset, event_id, deposit_id as depid,
                 (SELECT GROUP_CONCAT(DISTINCT users_expenses.user_id)
                     FROM users_expenses, users_groups
@@ -29,16 +27,63 @@ class Group
                     GROUP BY deposit_id
                 ) AS deposit_count
                 FROM expenses
-                WHERE expenses.group_id = :gid
-                ORDER BY expense_date DESC, eid DESC";
+                WHERE expenses.group_id = :gid ";
+
+    function getExpenses($gid)
+    {
+        $sql = $this->readExpensesSql . "ORDER BY expense_date DESC, eid DESC";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':gid' => $gid));
         // put the results in an array with gid as key
         $expense_list = array($gid => $stmt->fetchAll(\PDO::FETCH_ASSOC));
-
+        foreach ($expense_list[$gid] as $key => $expense)
+        {
+            $expense_list[$gid][$key]['etitle'] = utf8_encode($expense['etitle']);
+        }
         //$expense_list = Member::rearrangeArrayKey('eid', $expense_list);
-
-
         return json_encode($expense_list, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     }
+
+    function getExpense($gid, $eid)
+    {
+        $sql = $this->readExpensesSql . "AND expenses.expense_id = :eid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $gid, ':eid' => $eid));
+        $expense = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $expense['etitle'] = utf8_encode($expense['etitle']);
+        return json_encode($expense, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+    }
+
+    function addExpense($gid, $expense){
+        if (!isset($expense->type))
+            $expense->type = 1;
+        $sql = "INSERT INTO expenses (type, cid, user_id, group_id, description, amount, expense_date, event_id, timestamp, currency, timezoneoffset)
+                VALUES (:type, :cid, :user_id, :group_id, :description, :amount, FROM_UNIXTIME(:now), :event_id, CURRENT_TIMESTAMP, :currency, :timezoneoffset)";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':type' => $expense->type,
+                ':cid' => $expense->cid,
+                ':user_id' => $expense->uid,
+                ':group_id' => $gid,
+                ':description' => utf8_decode($expense->etitle),
+                ':amount' => $expense->amount,
+                ':now' => time(),
+                ':event_id' => $expense->event_id,
+                ':timezoneoffset' => $expense->timezoneoffset,
+                ':currency' => 1
+            )
+        );
+        $eid = Db::getInstance()->lastInsertId();
+
+        $sql = "INSERT INTO users_expenses (user_id , expense_id) VALUES (:user_id, :eid)";
+        $stmt = Db::getInstance()->prepare($sql);
+        $uids = explode(',', $expense->uids);
+        foreach ($uids as $user_id){
+            $stmt->execute(array(':user_id' => $user_id, ':eid' => $eid));
+        }
+
+        return $this->getExpense($gid, $eid);
+    }
+
 }

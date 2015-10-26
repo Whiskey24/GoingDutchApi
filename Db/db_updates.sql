@@ -29,6 +29,9 @@ ALTER TABLE `categories` ADD PRIMARY KEY (`cid`, `group_id`);
 # Add timezoneoffset to expenses table
 ALTER TABLE `expenses` ADD COLUMN `timezoneoffset` SMALLINT NOT NULL DEFAULT '0' AFTER `currency`;
 
+# Add cid to expenses table
+ALTER TABLE `expenses` ADD COLUMN `cid` INT(11) NOT NULL AFTER `type`;
+
 
 # Copy existing expense types over as categories
 INSERT INTO categories` (`expense_type_id`, `description`) VALUES

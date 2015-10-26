@@ -11,6 +11,8 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
     protected $knownuser = array('name' => 'whiskey', 'pass' => 'testpassword');
     protected $unknownuser = array('name' => 'whiskea', 'pass' => 'testpassword');
     protected $gid = 1;
+    protected $eid = 1;
+    protected $expenseKeysToCheck = array('eid', 'etitle', 'uid', 'cid', 'type', 'amount', 'ecreated', 'eupdated', 'timezoneoffset', 'event_id', 'depid', 'uids', 'deposit_count', 'gid');
 
     protected function setUp()
     {
@@ -35,7 +37,7 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
 
         // only check first 3 and last 3 entries
         $index = 0;
-        $keysToCheck = array('eid', 'etitle', 'uid', 'amount', 'ecreated', 'eupdated', 'timezoneoffset', 'event_id', 'depid', 'uids', 'deposit_count', 'gid');
+        $keysToCheck = $this->expenseKeysToCheck;
         foreach ($resultArray[$this->gid] as $expense) {
             $index++;
             if ($index > 3 && $index <= (count($resultArray[$this->gid]) - 3))
@@ -48,4 +50,49 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
             }
         }
     }
+
+    public function testExpenseRead()
+    {
+        $response = $this->client->get("/group/{$this->gid}/expenses/{$this->eid}", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        foreach ($this->expenseKeysToCheck as $key) {
+            $this->assertArrayHasKey($key, $resultArray, "Key '{$key}' not found in expense #{$this->eid}");
+            if ($key == 'gid'){
+                $this->assertEquals($this->gid, $resultArray[$key], "'{$key}' not equal to expected group id ({$this->gid}) in expense #{$this->eid}");
+            }
+            else if ($key == 'eid'){
+                $this->assertEquals($this->eid, $resultArray[$key], "'{$key}' not equal to expected expense id ({$this->eid}) in expense #{$this->eid} ");
+            }
+        }
+    }
+
+    public function testExpenseAdd()
+    {
+        $newExpense = array(
+            'etitle' => utf8_encode('Test Expense 123 äëö!'),
+            'uid' => 1,
+            'amount' => 100,
+            'timezoneoffset' => 120,
+            'event_id' => 0,
+            'uids' => '1,2,3,4',
+            'deposit_count' => null,
+            'depid' => null,
+            'gid' => 1,
+            'cid' => 1,
+            'type' => 1
+        );
+
+        $response = $this->client->request('PUT', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        foreach ($newExpense as $key => $val){
+            $this->assertArrayHasKey($key, $resultArray, "Key '{$key}' not found in added expense");
+            $this->assertEquals($val, $resultArray[$key], "'{$key}' not equal to value of added expense (expected {$val}, got $resultArray[$key])");
+        }
+
+        //ToDo: select user uids from group and then check balance of each user after adding expense
+
+    }
+
 }
