@@ -69,29 +69,86 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
 
     public function testExpenseAdd()
     {
+        $this->AddExpense('all');
+        $this->AddExpense('two');
+        $this->AddExpense('settle');
+    }
+
+
+    /*
+     * $type can be 'all', 'two' or 'settle'
+     */
+    public function AddExpense($type)
+    {
         $newExpense = array(
             'etitle' => utf8_encode('Test Expense 123 äëö!'),
-            'uid' => 1,
             'amount' => 100,
             'timezoneoffset' => 120,
             'event_id' => 0,
-            'uids' => '1,2,3,4',
             'deposit_count' => null,
             'depid' => null,
-            'gid' => 1,
+            'gid' => $this->gid,
             'cid' => 1,
             'type' => 1
         );
 
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        $group = $resultArray[$this->gid];
+
+        switch($type){
+            case 'two':
+                // get second member to settle with
+                $memberList = explode(',', $group['user_id_list']);
+                $expenseOwner = array_shift(array_values($memberList));
+                $memberList =  array($expenseOwner, array_shift(array_slice($memberList, 1, 1, true)));
+                break;
+            case 'settle':
+                // get second member to settle with
+                $memberList = explode(',', $group['user_id_list']);
+                $expenseOwner = array_shift(array_values($memberList));
+                $memberList =  array(array_shift(array_slice($memberList, 1, 1, true)));
+                break;
+            case 'all':
+                $memberList = explode(',', $group['user_id_list']);
+                $expenseOwner = array_shift(array_values($memberList));
+                break;
+        }
+
+        $newExpense['uid'] = $expenseOwner;
+        $newExpense['uids'] = implode(',', $memberList);
+        $oldBalanceArray = $group['members'];
+
+        $amountPP = $newExpense['amount'] / count($memberList);
+        $calcBalanceArray = $oldBalanceArray;
+        foreach ($calcBalanceArray as $uid => $val){
+            if (in_array($uid, $memberList))
+                $calcBalanceArray[$uid]['balance'] -= $amountPP;
+        }
+        $calcBalanceArray[$expenseOwner]['balance'] += $newExpense['amount'] ;
+
+        // Test response of expense add
         $response = $this->client->request('PUT', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
         foreach ($newExpense as $key => $val){
-            $this->assertArrayHasKey($key, $resultArray, "Key '{$key}' not found in added expense");
-            $this->assertEquals($val, $resultArray[$key], "'{$key}' not equal to value of added expense (expected {$val}, got $resultArray[$key])");
+            $this->assertArrayHasKey($key, $resultArray, "AddExpense type={$type}: Key '{$key}' not found in added expense");
+            $this->assertEquals($val, $resultArray[$key], "AddExpense type={$type}: '{$key}' not equal to value of added expense (expected {$val}, got $resultArray[$key])");
         }
 
-        //ToDo: select user uids from group and then check balance of each user after adding expense
+        // Test member balance as result of expense add
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        $newBalanceArray = $resultArray[$this->gid]['members'];
+        foreach ($calcBalanceArray as $uid => $val){
+            $calc = $calcBalanceArray[$uid]['balance'];
+            $new = $newBalanceArray[$uid]['balance'];
+            $this->assertEquals($new, $calc, "AddExpense type={$type}: Calculated balance ({$calc}) for member '{$uid}' not equal to value of returned balance ({$new}) in group {$this->gid}");
+        }
 
     }
 

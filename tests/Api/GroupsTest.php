@@ -1,6 +1,10 @@
 <?php
 //namespace Slim\Tests;
 
+
+//DELETE FROM expenses where expense_id > 570;
+//DELETE FROM users_expenses where expense_id > 570;
+
 use Slim\App;
 use GuzzleHttp\Client;
 
@@ -34,6 +38,17 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
             $this->assertInternalType('array', $group['members']);
             $this->assertGreaterThan(0, count($group['members']));
             $resultMemberArray = $group['members'];
+
+            // check if user_id_list uids are all in members array
+            $memberList = explode(',', $group['user_id_list']);
+            $memberListCount = count($memberList);
+            $resultMemberArrayCount = count($resultMemberArray);
+            $this->assertEquals($memberListCount,$resultMemberArrayCount, "Member count in user_id_list ({$memberListCount}) does not match member array count ({$resultMemberArrayCount}) in group {$group['gid']}");
+
+            foreach ($memberList as $uid){
+                $this->assertArrayHasKey($uid, $resultMemberArray , "Member '{uid}' was listed 'user_id_list', but not found in 'members' array of group {$group['gid']}");
+            }
+
             $keysToCheck = array('paid', 'expense', 'balance', 'uid');
             $totalscheck = array('paid' => 0, 'expense' => 0, 'balance' => 0);
             foreach ($resultMemberArray as $uid => $member) {
