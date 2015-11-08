@@ -58,6 +58,13 @@ $app->post('/group/{gid}/expenses', function ($request, $response, $args) {
     return $newResponse;
 })->add($auth);
 
+$app->put('/group/{gid}/expenses', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    $response->write($group->updateExpense($args['gid'], $request->getParsedBody()));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
 $app->delete('/group/{gid}/expenses/{eid}', function ($request, $response, $args) {
     $group = new \Models\Group();
     $response->write($group->deleteExpense($args['gid'], $args['eid']));

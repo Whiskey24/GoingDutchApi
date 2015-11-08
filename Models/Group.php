@@ -99,4 +99,41 @@ class Group
         return $eid;
     }
 
+    function updateExpense($gid, $expense){
+        // ToDo: Add expense date
+        if (!isset($expense->type))
+            $expense->type = 1;
+        $sql = "UPDATE expenses SET type=:type, cid=:cid, user_id=:user_id, description=:description, amount=:amount, event_id=:event_id, timestamp=CURRENT_TIMESTAMP,
+                currency=:currency, timezoneoffset=:timezoneoffset
+                WHERE expense_id=:eid AND group_id=:group_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':type' => $expense->type,
+                ':cid' => $expense->cid,
+                ':user_id' => $expense->uid,
+                ':group_id' => $gid,
+                ':description' => utf8_decode($expense->etitle),
+                ':amount' => $expense->amount,
+                ':event_id' => $expense->event_id,
+                ':timezoneoffset' => $expense->timezoneoffset,
+                ':currency' => 1,
+                ':eid' => $expense->eid
+            )
+        );
+
+        $sql = "DELETE FROM users_expenses WHERE expense_id = :eid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':eid' => $expense->eid));
+
+        $sql = "INSERT INTO users_expenses (user_id , expense_id) VALUES (:user_id, :eid)";
+        $stmt = Db::getInstance()->prepare($sql);
+        $uids = explode(',', $expense->uids);
+        foreach ($uids as $user_id){
+            $stmt->execute(array(':user_id' => $user_id, ':eid' => $expense->eid));
+        }
+
+        return $this->getExpense($gid, $expense->eid);
+    }
+
 }

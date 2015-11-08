@@ -74,11 +74,95 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
         $this->AddExpense('settle');
     }
 
+    public function testUpdateExpense()
+    {
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $group = $resultArray[$this->gid];
+        //$groupMembers = explode(',', $group['user_id_list']);
+        $oldBalanceArray = $group['members'];
+
+        $newEid = $this->AddExpense('all', false);
+        $response = $this->client->get("/group/{$this->gid}/expenses/{$newEid}", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        $memberList = explode(',', $resultArray['uids']);
+        $expenseOwner = $resultArray['uid'];
+
+        $amountPP = $resultArray['amount'] / count($memberList);
+        $calcBalanceArray = $oldBalanceArray;
+        foreach ($calcBalanceArray as $uid => $val){
+            if (in_array($uid, $memberList))
+                $calcBalanceArray[$uid]['balance'] += $amountPP;
+        }
+        $calcBalanceArray[$expenseOwner]['balance'] -= $resultArray['amount'];
+
+
+        $newOwner = array_shift(array_slice($memberList, 1, 1, true));
+        $removeMember = array_pop($memberList);
+        $memberListStr = implode(',', $memberList);
+
+        $newExpense = array(
+            'eid' => $newEid,
+            'etitle' => $resultArray['etitle'] . utf8_encode(' - update'),
+            'amount' => 200,
+            'timezoneoffset' => $resultArray['timezoneoffset'],
+            'event_id' => $resultArray['event_id'],
+            'deposit_count' => $resultArray['deposit_count'],
+            'depid' => $resultArray['depid'],
+            'gid' => $resultArray['gid'],
+            'cid' => $resultArray['cid'],
+            'type' => $resultArray['type'],
+            'uid' => $newOwner,
+            'uids' => $memberListStr
+        );
+
+        $amountPP = $newExpense['amount'] / count($memberList);
+        foreach ($calcBalanceArray as $uid => $val){
+            if (in_array($uid, $memberList))
+                $calcBalanceArray[$uid]['balance'] += $amountPP;
+        }
+        $calcBalanceArray[$newOwner]['balance'] -= $resultArray['amount'];
+
+        // Test response of expense update
+        $response = $this->client->request('PUT', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        foreach ($newExpense as $key => $val){
+            $this->assertArrayHasKey($key, $resultArray, "UpdateExpense: Key '{$key}' not found in added expense");
+            if ($key == 'uids'){
+                // http://stackoverflow.com/questions/3838288/phpunit-assert-two-arrays-are-equal-but-order-of-elements-not-important
+                $actual = explode(',', $resultArray['uids']);
+                $expected = explode(',', $val);
+                $this->assertSame(array_diff($expected, $actual), array_diff($actual, $expected));
+            }
+            else {
+                $this->assertEquals($val, $resultArray[$key], "UpdateExpense: '{$key}' not equal to value of added expense (expected {$val}, got $resultArray[$key])");
+            }
+        }
+
+        // Test member balance as result of expense add
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        $newBalanceArray = $resultArray[$this->gid]['members'];
+        foreach ($calcBalanceArray as $uid => $val){
+            $calc = $calcBalanceArray[$uid]['balance'];
+            $new = $newBalanceArray[$uid]['balance'];
+            $this->assertEquals($new, $calc, "Update expense: Calculated balance ({$calc}) for member '{$uid}' not equal to value of returned balance ({$new}) in group {$this->gid}");
+        }
+
+
+    }
+
 
     /*
      * $type can be 'all', 'two' or 'settle'
      */
-    public function AddExpense($type)
+    public function AddExpense($type, $delete = true)
     {
         $newExpense = array(
             'etitle' => utf8_encode('Test Expense 123 äëö!'),
@@ -160,6 +244,9 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
             $this->assertEquals($new, $calc, "AddExpense type={$type}: Calculated balance ({$calc}) for member '{$uid}' not equal to value of returned balance ({$new}) in group {$this->gid}");
         }
 
+        if (!$delete)
+            return $newEid;
+
         $response = $this->client->request('DELETE', "/group/{$this->gid}/expenses/{$newEid}", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
         $content = $response->getBody()->getContents();
         $this->assertEquals($content, $newEid, "AddExpense type={$type}: Unexpected response for delete request of expense {$newEid}) in group {$this->gid}");
@@ -175,6 +262,8 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
             $new = $newBalanceArray[$uid]['balance'];
             $this->assertEquals($new, $old, "AddExpense type={$type}: Balance before expense delete ({$old}) for member '{$uid}' not equal to value of returned balance ({$new}) after delete in group {$this->gid}");
         }
+
+        return $newEid;
     }
 
 }
