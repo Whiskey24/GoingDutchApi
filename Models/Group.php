@@ -86,4 +86,17 @@ class Group
         return $this->getExpense($gid, $eid);
     }
 
+    function deleteExpense($gid, $eid)
+    {
+        $sql = "DELETE FROM expenses WHERE expense_id = :eid AND group_id = :gid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $gid, ':eid' => $eid));
+
+        $sql = "DELETE FROM users_expenses WHERE expense_id = :eid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':eid' => $eid));
+
+        return $eid;
+    }
+
 }

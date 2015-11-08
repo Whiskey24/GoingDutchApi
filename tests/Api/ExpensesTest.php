@@ -130,13 +130,14 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
         $calcBalanceArray[$expenseOwner]['balance'] += $newExpense['amount'] ;
 
         // Test response of expense add
-        $response = $this->client->request('PUT', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
+        $response = $this->client->request('POST', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
         foreach ($newExpense as $key => $val){
             $this->assertArrayHasKey($key, $resultArray, "AddExpense type={$type}: Key '{$key}' not found in added expense");
             $this->assertEquals($val, $resultArray[$key], "AddExpense type={$type}: '{$key}' not equal to value of added expense (expected {$val}, got $resultArray[$key])");
         }
+        $newEid = $resultArray['eid'];
 
         // Test member balance as result of expense add
         $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
@@ -149,6 +150,8 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
             $new = $newBalanceArray[$uid]['balance'];
             $this->assertEquals($new, $calc, "AddExpense type={$type}: Calculated balance ({$calc}) for member '{$uid}' not equal to value of returned balance ({$new}) in group {$this->gid}");
         }
+
+        $response = $this->client->request('DELETE', "/group/{$this->gid}/expenses/{$newEid}", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
 
     }
 
