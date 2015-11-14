@@ -89,16 +89,6 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
         $resultArray = json_decode($content, true);
 
         $memberList = explode(',', $resultArray['uids']);
-        $expenseOwner = $resultArray['uid'];
-
-        $amountPP = $resultArray['amount'] / count($memberList);
-        $calcBalanceArray = $oldBalanceArray;
-        foreach ($calcBalanceArray as $uid => $val){
-            if (in_array($uid, $memberList))
-                $calcBalanceArray[$uid]['balance'] += $amountPP;
-        }
-        $calcBalanceArray[$expenseOwner]['balance'] -= $resultArray['amount'];
-
 
         $newOwner = array_shift(array_slice($memberList, 1, 1, true));
         $removeMember = array_pop($memberList);
@@ -119,12 +109,16 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
             'uids' => $memberListStr
         );
 
+        $calcBalanceArray = $oldBalanceArray;
         $amountPP = $newExpense['amount'] / count($memberList);
+        $calcBalanceArray[$newOwner]['paid'] += $newExpense['amount'];
         foreach ($calcBalanceArray as $uid => $val){
-            if (in_array($uid, $memberList))
-                $calcBalanceArray[$uid]['balance'] += $amountPP;
+            if (in_array($uid, $memberList)){
+                $calcBalanceArray[$uid]['expense'] += $amountPP;
+                $calcBalanceArray[$uid]['balance'] = $calcBalanceArray[$uid]['paid'] - $calcBalanceArray[$uid]['expense'];
+            }
         }
-        $calcBalanceArray[$newOwner]['balance'] -= $resultArray['amount'];
+
 
         // Test response of expense update
         $response = $this->client->request('PUT', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
@@ -150,12 +144,10 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
 
         $newBalanceArray = $resultArray[$this->gid]['members'];
         foreach ($calcBalanceArray as $uid => $val){
-            $calc = $calcBalanceArray[$uid]['balance'];
-            $new = $newBalanceArray[$uid]['balance'];
+            $calc = round($calcBalanceArray[$uid]['balance'],2);
+            $new = round($newBalanceArray[$uid]['balance'],2);
             $this->assertEquals($new, $calc, "Update expense: Calculated balance ({$calc}) for member '{$uid}' not equal to value of returned balance ({$new}) in group {$this->gid}");
         }
-
-
     }
 
 

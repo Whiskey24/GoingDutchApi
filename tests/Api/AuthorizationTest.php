@@ -8,8 +8,8 @@ class AuthorizationTest extends \PHPUnit_Framework_TestCase
 {
     protected $client;
 
-    protected $knownuser = array('name' => 'whiskey', 'pass' => 'testpassword');
-    protected $unknownuser = array('name' => 'whiskea', 'pass' => 'testpassword');
+    protected $knownuser = array('name' => 'Whiskey', 'email' => 'test@test.com', 'pass' => 'testpassword');
+    protected $unknownuser = array('name' => 'whiskea', 'email' => 'test2@test.com', 'pass' => 'testpassword');
 
     protected function setUp()
     {
@@ -21,17 +21,23 @@ class AuthorizationTest extends \PHPUnit_Framework_TestCase
 
     public function testAuthorizeExistingUserCorrectPass()
     {
+        // test authentication with username
         $response = $this->client->get('/version', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
-
         $result = $response->getBody()->getContents();
         $expected = 'Going Dutch API v';
+        $this->assertEquals(200, $response->getStatusCode(), "Could not authenticate with username");
+        $this->assertContains($expected, $result);
 
-        $this->assertEquals(200, $response->getStatusCode());
+        // test authentication with email address
+        $response = $this->client->get('/version', ['auth' => [$this->knownuser['email'], $this->knownuser['pass']]]);
+        $result = $response->getBody()->getContents();
+        $this->assertEquals(200, $response->getStatusCode(), "Could not authenticate with email address");
         $this->assertContains($expected, $result);
     }
 
     public function testAuthorizeExistingUserWrongPass()
     {
+        // test authentication with wrong username
         try {
             $response = $this->client->get('/version', ['auth' => [$this->knownuser['name'], $this->knownuser['pass'] . '123']]);
         } catch (\GuzzleHttp\Exception\ClientException $e) {
@@ -39,7 +45,17 @@ class AuthorizationTest extends \PHPUnit_Framework_TestCase
         }
         $result = $response->getBody()->getContents();
         $expected = 'Not authorized';
+        $this->assertEquals(403, $response->getStatusCode());
+        $this->assertEquals($expected, $result);
 
+        // test authentication with wrong email address
+        try {
+            $response = $this->client->get('/version', ['auth' => [$this->knownuser['email'], $this->knownuser['pass'] . '123']]);
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            $response = $e->getResponse();
+        }
+        $result = $response->getBody()->getContents();
+        $expected = 'Not authorized';
         $this->assertEquals(403, $response->getStatusCode());
         $this->assertEquals($expected, $result);
     }
@@ -48,6 +64,16 @@ class AuthorizationTest extends \PHPUnit_Framework_TestCase
     {
         try {
             $response = $this->client->get('/version', ['auth' => [$this->knownuser['name'], '']]);
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            $response = $e->getResponse();
+        }
+        $result = $response->getBody()->getContents();
+        $expected = 'Not authorized';
+        $this->assertEquals(403, $response->getStatusCode());
+        $this->assertEquals($expected, $result);
+
+        try {
+            $response = $this->client->get('/version', ['auth' => [$this->knownuser['email'], '']]);
         } catch (\GuzzleHttp\Exception\ClientException $e) {
             $response = $e->getResponse();
         }
@@ -62,6 +88,17 @@ class AuthorizationTest extends \PHPUnit_Framework_TestCase
     {
         try {
             $response = $this->client->get('/version', ['auth' => [$this->unknownuser['name'], $this->unknownuser['pass']]]);
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            $response = $e->getResponse();
+        }
+        $result = $response->getBody()->getContents();
+        $expected = 'Not authorized';
+
+        $this->assertEquals(403, $response->getStatusCode());
+        $this->assertEquals($expected, $result);
+
+        try {
+            $response = $this->client->get('/version', ['auth' => [$this->unknownuser['email'], $this->unknownuser['pass']]]);
         } catch (\GuzzleHttp\Exception\ClientException $e) {
             $response = $e->getResponse();
         }

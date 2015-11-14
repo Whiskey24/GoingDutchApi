@@ -43,12 +43,21 @@ class Authenticate
             $hash = md5($salt . $pass . $salt);
 
             // validate credentials
-            $stmt = Db::getInstance()->prepare("SELECT users.* FROM users WHERE username = :name AND password = :hash");
+            $stmt = Db::getInstance()->prepare("SELECT users.* FROM users WHERE email = :name AND password = :hash");
             $stmt->execute(array(':name' => $name, ':hash' => $hash));
             $result = $stmt->fetch();
             if ($result) {
                 $authorized = true;
                 self::$requestUid = intval($result['user_id']);
+            }
+            else {
+                $stmt = Db::getInstance()->prepare("SELECT users.* FROM users WHERE username = :name AND password = :hash");
+                $stmt->execute(array(':name' => $name, ':hash' => $hash));
+                $result = $stmt->fetch();
+                if ($result) {
+                    $authorized = true;
+                    self::$requestUid = intval($result['user_id']);
+                }
             }
         }
 
