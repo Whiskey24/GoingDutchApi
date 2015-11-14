@@ -11,11 +11,11 @@ require 'Db/Db.php';
 // ToDo: use this for compression - http://pieroxy.net/blog/pages/lz-string/index.html
 
 $app = new \Slim\App();
-
 $auth = new \Middleware\Authenticate();
 
 $app->get('/version', function ($request, $response, $args) {
-    $response->write("Going Dutch API v0.1");
+    $id = array('service' => 'Going Dutch API', 'version' =>'0.1', 'uid' => \Middleware\Authenticate::$requestUid);
+    $response->write(json_encode($id));
     return $response;
 })->add($auth);
 

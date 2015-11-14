@@ -24,16 +24,18 @@ class AuthorizationTest extends \PHPUnit_Framework_TestCase
         // test authentication with username
         $response = $this->client->get('/version', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
         $result = $response->getBody()->getContents();
-        $expected = 'Going Dutch API v';
+        $resultArray = json_decode($result, true);
+        $expected = 'Going Dutch API';
         $this->assertEquals(200, $response->getStatusCode(), "Could not authenticate with username");
-        $this->assertContains($expected, $result);
+        $this->assertEquals($expected, $resultArray['service']);
+        $this->assertGreaterThan(0, $resultArray['uid']);
 
         // test authentication with email address
         $response = $this->client->get('/version', ['auth' => [$this->knownuser['email'], $this->knownuser['pass']]]);
         $result = $response->getBody()->getContents();
         $this->assertEquals(200, $response->getStatusCode(), "Could not authenticate with email address");
-        $this->assertContains($expected, $result);
-    }
+        $this->assertEquals($expected, $resultArray['service']);
+        $this->assertGreaterThan(0, $resultArray['uid']);    }
 
     public function testAuthorizeExistingUserWrongPass()
     {
