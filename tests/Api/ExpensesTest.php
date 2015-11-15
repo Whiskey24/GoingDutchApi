@@ -150,10 +150,69 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
         }
     }
 
+    public function testExpenseAddNonGroupMember()
+    {
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $group = $resultArray[$this->gid]['members'];
 
-    /*
-     * $type can be 'all', 'two' or 'settle'
-     */
+        $response = $this->client->get('/users', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $users = $resultArray;
+
+        $nonMembers = array_diff_key($users, $group);
+        reset($nonMembers);
+        $nonMemberUid = key ($nonMembers);
+        reset($group);
+        $member = key ($group);
+
+        $newExpense = array(
+            'etitle' => utf8_encode('Non member test'),
+            'amount' => 100,
+            'timezoneoffset' => 120,
+            'event_id' => 0,
+            'deposit_count' => null,
+            'depid' => null,
+            'gid' => $this->gid,
+            'cid' => 1,
+            'type' => 1,
+            'uid' => $nonMemberUid,
+            'uids' => implode(',', array_keys($group))
+        );
+
+        $response = $this->client->request('POST', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
+        $content = $response->getBody()->getContents();
+        $expected = "invalid uids";
+        $this->assertEquals($expected, $content, "Adding expense with invalid owner uid did not generate expected result");
+
+        $newExpense = array(
+            'etitle' => utf8_encode('Non member test'),
+            'amount' => 100,
+            'timezoneoffset' => 120,
+            'event_id' => 0,
+            'deposit_count' => null,
+            'depid' => null,
+            'gid' => $this->gid,
+            'cid' => 1,
+            'type' => 1,
+            'uid' => $member,
+            'uids' => implode(',', array_keys($group)) .  ',' . $nonMemberUid
+        );
+
+        $response = $this->client->request('POST', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
+        $content = $response->getBody()->getContents();
+        $expected = "invalid uids";
+        $this->assertEquals($expected, $content, "Adding expense with invalid participant uid did not generate expected result");
+
+
+    }
+
+
+        /*
+         * $type can be 'all', 'two' or 'settle'
+         */
     public function AddExpense($type, $delete = true)
     {
         $newExpense = array(

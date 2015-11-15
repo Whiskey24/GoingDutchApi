@@ -55,6 +55,12 @@ class Group
     }
 
     function addExpense($gid, $expense){
+        // ToDo: reject expense if uid or uids not in group uids
+        $uids = $expense->uids . ',' . $expense->uid;
+        if (!$this->validateUids($uids, $gid)){
+            return 'invalid uids';
+        }
+
         if (!isset($expense->type))
             $expense->type = 1;
         $sql = "INSERT INTO expenses (type, cid, user_id, group_id, description, amount, expense_date, event_id, timestamp, currency, timezoneoffset)
@@ -134,6 +140,26 @@ class Group
         }
 
         return $this->getExpense($gid, $expense->eid);
+    }
+
+    private function validateUids($uids, $gid) {
+        if (!is_array($uids))
+            $uids = explode(',', $uids);
+        // get member ids for $gid
+        $sql = "SELECT GROUP_CONCAT(DISTINCT user_id) AS uids FROM users_groups WHERE group_id = :group_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':group_id' => $gid
+            )
+        );
+        $result= $stmt->fetchColumn();
+        $validUids = explode(',', $result);
+        foreach ($uids as $uid){
+            if (!in_array($uid, $validUids))
+                return false;
+        }
+        return true;
     }
 
 }
