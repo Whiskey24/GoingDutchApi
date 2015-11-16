@@ -184,7 +184,7 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
 
         $response = $this->client->request('POST', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
         $content = $response->getBody()->getContents();
-        $expected = "invalid uids";
+        $expected = "Error: invalid uids";
         $this->assertEquals($expected, $content, "Adding expense with invalid owner uid did not generate expected result");
 
         $newExpense = array(
@@ -203,7 +203,7 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
 
         $response = $this->client->request('POST', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
         $content = $response->getBody()->getContents();
-        $expected = "invalid uids";
+        $expected = "Error: invalid uids";
         $this->assertEquals($expected, $content, "Adding expense with invalid participant uid did not generate expected result");
 
 

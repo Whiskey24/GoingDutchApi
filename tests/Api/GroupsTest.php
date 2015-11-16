@@ -23,7 +23,6 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         ]);
     }
 
-
     public function testGroupsArrayStructure()
     {
         $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);

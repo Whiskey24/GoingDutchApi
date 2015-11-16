@@ -58,7 +58,7 @@ class Group
         // ToDo: reject expense if uid or uids not in group uids
         $uids = $expense->uids . ',' . $expense->uid;
         if (!$this->validateUids($uids, $gid)){
-            return 'invalid uids';
+            return 'Error: invalid uids';
         }
 
         if (!isset($expense->type))
@@ -106,6 +106,11 @@ class Group
     }
 
     function updateExpense($gid, $expense){
+        $uids = $expense->uids . ',' . $expense->uid;
+        if (!$this->validateUids($uids, $gid)){
+            return 'Error: invalid uids';
+        }
+
         // ToDo: Add expense date
         if (!isset($expense->type))
             $expense->type = 1;
