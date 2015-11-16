@@ -106,7 +106,9 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
             'cid' => $resultArray['cid'],
             'type' => $resultArray['type'],
             'uid' => $newOwner,
-            'uids' => $memberListStr
+            'uids' => $memberListStr,
+            'ecreated' => time(),
+            'eupdated' => time()
         );
 
         $calcBalanceArray = $oldBalanceArray;
@@ -179,7 +181,9 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
             'cid' => 1,
             'type' => 1,
             'uid' => $nonMemberUid,
-            'uids' => implode(',', array_keys($group))
+            'uids' => implode(',', array_keys($group)),
+            'ecreated' => time(),
+            'eupdated' => time()
         );
 
         $response = $this->client->request('POST', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
@@ -198,7 +202,9 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
             'cid' => 1,
             'type' => 1,
             'uid' => $member,
-            'uids' => implode(',', array_keys($group)) .  ',' . $nonMemberUid
+            'uids' => implode(',', array_keys($group)) .  ',' . $nonMemberUid,
+            'ecreated' => time(),
+            'eupdated' => time()
         );
 
         $response = $this->client->request('POST', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
@@ -224,7 +230,9 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
             'depid' => null,
             'gid' => $this->gid,
             'cid' => 1,
-            'type' => 1
+            'type' => 1,
+            'ecreated' => time(),
+            'eupdated' => time()
         );
 
         $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);

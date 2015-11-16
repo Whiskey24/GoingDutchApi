@@ -64,7 +64,7 @@ class Group
         if (!isset($expense->type))
             $expense->type = 1;
         $sql = "INSERT INTO expenses (type, cid, user_id, group_id, description, amount, expense_date, event_id, timestamp, currency, timezoneoffset)
-                VALUES (:type, :cid, :user_id, :group_id, :description, :amount, FROM_UNIXTIME(:now), :event_id, CURRENT_TIMESTAMP, :currency, :timezoneoffset)";
+                VALUES (:type, :cid, :user_id, :group_id, :description, :amount, FROM_UNIXTIME(:created), :event_id, FROM_UNIXTIME(:updated), :currency, :timezoneoffset)";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(
             array(
@@ -74,7 +74,8 @@ class Group
                 ':group_id' => $gid,
                 ':description' => utf8_decode($expense->etitle),
                 ':amount' => $expense->amount,
-                ':now' => time(),
+                ':created' => $expense->ecreated,
+                ':updated' => $expense->eupdated,
                 ':event_id' => $expense->event_id,
                 ':timezoneoffset' => $expense->timezoneoffset,
                 ':currency' => 1
@@ -110,12 +111,11 @@ class Group
         if (!$this->validateUids($uids, $gid)){
             return 'Error: invalid uids';
         }
-
-        // ToDo: Add expense date
+        
         if (!isset($expense->type))
             $expense->type = 1;
-        $sql = "UPDATE expenses SET type=:type, cid=:cid, user_id=:user_id, description=:description, amount=:amount, event_id=:event_id, timestamp=CURRENT_TIMESTAMP,
-                currency=:currency, timezoneoffset=:timezoneoffset
+        $sql = "UPDATE expenses SET type=:type, cid=:cid, user_id=:user_id, description=:description, amount=:amount, event_id=:event_id, timestamp=:updated,
+                currency=:currency, timezoneoffset=:timezoneoffset, expense_date=FROM_UNIXTIME(:created), timestamp=FROM_UNIXTIME(:updated)
                 WHERE expense_id=:eid AND group_id=:group_id";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(
@@ -129,7 +129,9 @@ class Group
                 ':event_id' => $expense->event_id,
                 ':timezoneoffset' => $expense->timezoneoffset,
                 ':currency' => 1,
-                ':eid' => $expense->eid
+                ':eid' => $expense->eid,
+                ':updated' => $expense->eupdated,
+                ':created' => $expense->ecreated
             )
         );
 
