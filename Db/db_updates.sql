@@ -1,4 +1,29 @@
 
+# Replace deleted expenses table
+
+DROP TABLE `expenses_del`;
+CREATE TABLE `goingdutch`.`expenses_del` (
+  `expense_id` INT(11) NOT NULL,
+  `type` INT(11) NOT NULL,
+  `cid` INT(11) NOT NULL,
+  `user_id` INT(11) NOT NULL,
+  `group_id` INT(11) NOT NULL,
+  `uids` VARCHAR(240) NOT NULL,
+  `description` VARCHAR(60) NOT NULL,
+  `amount` FLOAT(10,2) NOT NULL,
+  `expense_date` DATETIME NOT NULL,
+  `event_id` INT(11) NOT NULL DEFAULT '0',
+  `deposit_id` INT(11) NULL DEFAULT NULL,
+  `timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `currency` INT(11) NOT NULL,
+  `timezoneoffset` SMALLINT(6) NOT NULL DEFAULT '0',
+  `delete_date` DATETIME NOT NULL,
+  PRIMARY KEY (`expense_id`),
+  FULLTEXT INDEX `description` (`description`)
+)
+  COLLATE 'latin1_swedish_ci' ENGINE=MyISAM ROW_FORMAT=Dynamic;
+
+
 # Add currency to groups
 ALTER TABLE `groups` ADD COLUMN `currency` VARCHAR(6) NOT NULL DEFAULT 'EUR' AFTER `reg_date`;
 

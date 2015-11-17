@@ -49,10 +49,10 @@ $app->get('/group/{gid}/expenses/{eid}', function ($request, $response, $args) {
 
 $app->post('/group/{gid}/expenses', function ($request, $response, $args) {
     $group = new \Models\Group();
-    error_log( "TEST");
-    error_log( $request->getBody());
-    error_log( print_r($request->getParsedBody(), 1));
-    error_log( "TEST2");
+//    error_log( "TEST");
+//    error_log( $request->getBody());
+//    error_log( print_r($request->getParsedBody(), 1));
+//    error_log( "TEST2");
     $response->write($group->addExpense($args['gid'], $request->getParsedBody()));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;

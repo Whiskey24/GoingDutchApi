@@ -44,14 +44,17 @@ class Group
         return json_encode($expense_list, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     }
 
-    function getExpense($gid, $eid)
+    function getExpense($gid, $eid, $json = true)
     {
         $sql = $this->readExpensesSql . "AND expenses.expense_id = :eid";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':gid' => $gid, ':eid' => $eid));
         $expense = $stmt->fetch(\PDO::FETCH_ASSOC);
         $expense['etitle'] = utf8_encode($expense['etitle']);
-        return json_encode($expense, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+        if ($json)
+            return json_encode($expense, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+        else
+            return $expense;
     }
 
     function addExpense($gid, $expense){
@@ -95,6 +98,32 @@ class Group
 
     function deleteExpense($gid, $eid)
     {
+        $expense = $this->getExpense($gid, $eid, false);
+
+        if (!isset($expense['type']))
+            $expense['type'] = 1;
+        $sql = "INSERT INTO expenses_del (expense_id, type, cid, user_id, group_id, uids, description, amount, expense_date, event_id, timestamp, currency, timezoneoffset, delete_date)
+                VALUES (:eid, :type, :cid, :user_id, :group_id, :uids, :description, :amount, FROM_UNIXTIME(:created), :event_id, FROM_UNIXTIME(:updated), :currency, :timezoneoffset, FROM_UNIXTIME(:now))";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':eid' => $expense['eid'],
+                ':type' => $expense['type'],
+                ':cid' => $expense['cid'],
+                ':user_id' => $expense['uid'],
+                ':group_id' => $expense['gid'],
+                ':uids' => $expense['uids'],
+                ':description' => utf8_decode($expense['etitle']),
+                ':amount' => $expense['amount'],
+                ':created' => $expense['ecreated'],
+                ':updated' => $expense['eupdated'],
+                ':event_id' => $expense['event_id'],
+                ':timezoneoffset' => $expense['timezoneoffset'],
+                ':currency' => 1,
+                ':now' => time()
+            )
+        );
+
         $sql = "DELETE FROM expenses WHERE expense_id = :eid AND group_id = :gid";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':gid' => $gid, ':eid' => $eid));
@@ -111,7 +140,7 @@ class Group
         if (!$this->validateUids($uids, $gid)){
             return 'Error: invalid uids';
         }
-        
+
         if (!isset($expense->type))
             $expense->type = 1;
         $sql = "UPDATE expenses SET type=:type, cid=:cid, user_id=:user_id, description=:description, amount=:amount, event_id=:event_id, timestamp=:updated,
