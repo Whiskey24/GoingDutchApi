@@ -275,21 +275,21 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
         // Test response of expense add
         $response = $this->client->request('POST', "/group/{$this->gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newExpense]);
         $content = $response->getBody()->getContents();
-        $resultArray = json_decode($content, true);
+        $expense = json_decode($content, true);
         foreach ($newExpense as $key => $val){
-            $this->assertArrayHasKey($key, $resultArray, "AddExpense type={$type}: Key '{$key}' not found in added expense");
+            $this->assertArrayHasKey($key, $expense, "AddExpense type={$type}: Key '{$key}' not found in added expense");
             if ($key == 'uids'){
                 // http://stackoverflow.com/questions/3838288/phpunit-assert-two-arrays-are-equal-but-order-of-elements-not-important
-                $actual = explode(',', $resultArray['uids']);
+                $actual = explode(',', $expense['uids']);
                 $expected = explode(',', $val);
                 $this->assertSame(array_diff($expected, $actual), array_diff($actual, $expected));
             }
             else {
-                $this->assertEquals($val, $resultArray[$key], "AddExpense type={$type}: '{$key}' not equal to value of added expense (expected {$val}, got $resultArray[$key])");
+                $this->assertEquals($val, $expense[$key], "AddExpense type={$type}: '{$key}' not equal to value of added expense (expected {$val}, got $expense[$key])");
             }
 
         }
-        $newEid = $resultArray['eid'];
+        $newEid = $expense['eid'];
 
         // Test member balance as result of expense add
         $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
@@ -320,6 +320,16 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
             $old = $oldBalanceArray[$uid]['balance'];
             $new = $newBalanceArray[$uid]['balance'];
             $this->assertEquals($new, $old, "AddExpense type={$type}: Balance before expense delete ({$old}) for member '{$uid}' not equal to value of returned balance ({$new}) after delete in group {$this->gid}");
+        }
+
+        // test if expense has been stored in delete table
+        $response = $this->client->get("/group/{$this->gid}/expensesdel/{$newEid}", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        foreach ($this->expenseKeysToCheck as $key) {
+            if ($key == 'deposit_count')
+                continue;
+            $this->assertEquals($resultArray[$key], $expense[$key], "'{$key}' not equal to expected in deleted expense #{$newEid} ");
         }
 
         return $newEid;

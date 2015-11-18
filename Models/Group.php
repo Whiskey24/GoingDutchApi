@@ -29,6 +29,12 @@ class Group
                 FROM expenses
                 WHERE expenses.group_id = :gid ";
 
+    protected $readExpensesDelSql = "SELECT expense_id AS eid, group_id as gid, cid, type, description AS etitle, user_id as uid, uids,
+                amount, amount, UNIX_TIMESTAMP(expense_date) AS ecreated, UNIX_TIMESTAMP(delete_date) AS edeleted,
+                UNIX_TIMESTAMP(timestamp) AS eupdated, timezoneoffset, event_id, deposit_id as depid
+                FROM expenses_del
+                WHERE expenses_del.group_id = :gid ";
+
     function getExpenses($gid)
     {
         $sql = $this->readExpensesSql . "ORDER BY expense_date DESC, eid DESC";
@@ -44,9 +50,37 @@ class Group
         return json_encode($expense_list, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     }
 
+    function getExpensesDel($gid)
+    {
+        $sql = $this->readExpensesDelSql . "ORDER BY expense_date DESC, eid DESC";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $gid));
+        // put the results in an array with gid as key
+        $expense_list = array($gid => $stmt->fetchAll(\PDO::FETCH_ASSOC));
+        foreach ($expense_list[$gid] as $key => $expense)
+        {
+            $expense_list[$gid][$key]['etitle'] = utf8_encode($expense['etitle']);
+        }
+        //$expense_list = Member::rearrangeArrayKey('eid', $expense_list);
+        return json_encode($expense_list, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+    }
+
     function getExpense($gid, $eid, $json = true)
     {
         $sql = $this->readExpensesSql . "AND expenses.expense_id = :eid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $gid, ':eid' => $eid));
+        $expense = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $expense['etitle'] = utf8_encode($expense['etitle']);
+        if ($json)
+            return json_encode($expense, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+        else
+            return $expense;
+    }
+
+    function getExpenseDel($gid, $eid, $json = true)
+    {
+        $sql = $this->readExpensesDelSql . "AND expenses_del.expense_id = :eid";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':gid' => $gid, ':eid' => $eid));
         $expense = $stmt->fetch(\PDO::FETCH_ASSOC);

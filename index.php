@@ -40,9 +40,23 @@ $app->get('/group/{gid}/expenses', function ($request, $response, $args) {
     return $newResponse;
 })->add($auth);
 
+$app->get('/group/{gid}/expensesdel', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    $response->write($group->getExpensesDel($args['gid']));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
 $app->get('/group/{gid}/expenses/{eid}', function ($request, $response, $args) {
     $group = new \Models\Group();
     $response->write($group->getExpense($args['gid'], $args['eid']));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->get('/group/{gid}/expensesdel/{eid}', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    $response->write($group->getExpenseDel($args['gid'], $args['eid']));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;
 })->add($auth);
