@@ -92,7 +92,6 @@ class Group
     }
 
     function addExpense($gid, $expense){
-        // ToDo: reject expense if uid or uids not in group uids
         $uids = $expense->uids . ',' . $expense->uid;
         if (!$this->validateUids($uids, $gid)){
             return 'Error: invalid uids';
@@ -100,6 +99,7 @@ class Group
 
         if (!isset($expense->type))
             $expense->type = 1;
+
         $sql = "INSERT INTO expenses (type, cid, user_id, group_id, description, amount, expense_date, event_id, timestamp, currency, timezoneoffset)
                 VALUES (:type, :cid, :user_id, :group_id, :description, :amount, FROM_UNIXTIME(:created), :event_id, FROM_UNIXTIME(:updated), :currency, :timezoneoffset)";
         $stmt = Db::getInstance()->prepare($sql);
@@ -126,6 +126,8 @@ class Group
         foreach ($uids as $user_id){
             $stmt->execute(array(':user_id' => $user_id, ':eid' => $eid));
         }
+
+        $this->addExpenseEmail($expense, $eid);
 
         return $this->getExpense($gid, $eid);
     }
@@ -232,4 +234,148 @@ class Group
         return true;
     }
 
+    private function addExpenseEmail($expense, $eid){
+        $uidDetails = $this->getUserDetails($expense->uids);
+
+
+        //        error_log( print_r($uidDetails, 1));
+        $uids = explode(',', $expense->uids);
+        $uid = array_pop(array_values($uids));
+        $member = new \Models\Member();
+        $groupsInfo = $member->getGroupsBalance($uid, false);
+        $currency = $groupsInfo[$expense->gid]['currency'];
+        $groupName = $groupsInfo[$expense->gid]['name'];
+        $subject = "Going Dutch expense booked in group \"{$groupName}\"";
+        $created = $expense->ecreated;
+        $from = 'goingdutch@santema.eu';
+
+        $messageTemplate  = "On {date} {eowner} booked an expense of {amount} with description \"{description}\".<br /><br />";
+        $messageTemplate .= "You were listed as a participant, together with {participants}.<br /><br />";
+        $messageTemplate .= "The costs per person are {amountpp} making your balance {yourbalance} which comes to position {yourposition} in the group. ";
+        $messageTemplate .= "The balance list is now: <br /><br />{balancelist}";
+        //$message .= "<br /><br /><a href=\"".LOGIN_URL."\">Going Dutch</a>";
+
+        foreach ($uids as $uid) {
+            $message = str_replace('{date}', $created, $messageTemplate);
+            $message = str_replace('{eowner}', $expense->uid == $uid ? "you" : $uidDetails[$uid]['realname'], $message);
+            $message = str_replace('{amount}', $currency . $expense->amount, $message);
+            $message = str_replace('{description}', utf8_decode($expense->etitle), $message);
+
+            $to = $uidDetails[$uid]['email'];
+
+            $sql = "INSERT INTO email (gid , eid, subject, message, toaddress, fromaddress) VALUES (:gid, :eid, :subject, :message, :toaddress, :fromaddress)";
+//            $stmt = Db::getInstance()->prepare($sql);
+//            $stmt->execute(
+//                array(
+//                    ':gid' => $expense->gid,
+//                    ':eid' => $eid,
+//                    ':subject' => $subject,
+//                    ':message' => $message,
+//                    ':to' => $to,
+//                    ':from' => $from
+//                )
+//            );
+
+            error_log($this->pdo_sql_debug($sql,
+                                array(
+                    ':gid' => $expense->gid,
+                    ':eid' => $eid,
+                    ':subject' => $subject,
+                    ':message' => $message,
+                    ':toaddress' => $to,
+                    ':fromaddress' => $from
+                )
+            ));
+        }
+
+
+//
+//        $sql = "INSERT INTO expenses (type, cid, user_id, group_id, description, amount, expense_date, event_id, timestamp, currency, timezoneoffset)
+//                VALUES (:type, :cid, :user_id, :group_id, :description, :amount, FROM_UNIXTIME(:created), :event_id, FROM_UNIXTIME(:updated), :currency, :timezoneoffset)";
+//        $stmt = Db::getInstance()->prepare($sql);
+//        $stmt->execute(
+//            array(
+//                ':type' => $expense->type,
+//                ':cid' => $expense->cid,
+//                ':user_id' => $expense->uid,
+//                ':group_id' => $gid,
+//                ':description' => utf8_decode($expense->etitle),
+//                ':amount' => $expense->amount,
+//                ':created' => $expense->ecreated,
+//                ':updated' => $expense->eupdated,
+//                ':event_id' => $expense->event_id,
+//                ':timezoneoffset' => $expense->timezoneoffset,
+//                ':currency' => 1
+//            )
+//        );
+    }
+
+
+    private function getUserDetails($uids) {
+
+        $sql = "SELECT user_id, email, username, realname FROM users WHERE FIND_IN_SET (user_id, :uids)";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':uids' => $uids
+            )
+        );
+        $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $uidDetails = array();
+        foreach ($result as $val){
+            $uidDetails[$val['user_id']] = $val;
+        }
+        return $uidDetails;
+    }
+
+//    private function queueEmail($gid, $eid, $subject, $message, $to, $from){
+//        if (!isset($expense->type))
+//            $expense->type = 1;
+//        $sql = "INSERT INTO expenses (type, cid, user_id, group_id, description, amount, expense_date, event_id, timestamp, currency, timezoneoffset)
+//                VALUES (:type, :cid, :user_id, :group_id, :description, :amount, FROM_UNIXTIME(:created), :event_id, FROM_UNIXTIME(:updated), :currency, :timezoneoffset)";
+//        $stmt = Db::getInstance()->prepare($sql);
+//        $stmt->execute(
+//            array(
+//                ':type' => $expense->type,
+//                ':cid' => $expense->cid,
+//                ':user_id' => $expense->uid,
+//                ':group_id' => $gid,
+//                ':description' => utf8_decode($expense->etitle),
+//                ':amount' => $expense->amount,
+//                ':created' => $expense->ecreated,
+//                ':updated' => $expense->eupdated,
+//                ':event_id' => $expense->event_id,
+//                ':timezoneoffset' => $expense->timezoneoffset,
+//                ':currency' => 1
+//            )
+//        );
+//        $eid = Db::getInstance()->lastInsertId();
+//    }
+
+
+    private function pdo_sql_debug($sql,$placeholders){
+        foreach($placeholders as $k => $v){
+            $sql = preg_replace('/'.$k.'/',"'".$v."'",$sql);
+        }
+        return $sql;
+    }
 }
+
+/*
+ * CREATE TABLE `Email` (
+  `email_id` INT NOT NULL AUTO_INCREMENT,
+  `gid` INT NOT NULL DEFAULT '0',
+  `eid` INT NULL DEFAULT '0',
+  `subject` TINYTEXT NULL,
+  `message` TEXT NULL,
+  `to` TEXT NULL,
+  `from` TEXT NULL,
+  `submitted` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  `sent` DATETIME NULL DEFAULT '0',
+  PRIMARY KEY (`email_id`)
+)
+  COLLATE='utf8_general_ci'
+  ENGINE=InnoDB
+;
+
+ */

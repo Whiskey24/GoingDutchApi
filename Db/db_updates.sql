@@ -1,4 +1,25 @@
 
+# Add email message table
+
+CREATE TABLE `Email` (
+  `email_id` INT NOT NULL AUTO_INCREMENT,
+  `gid` INT NOT NULL DEFAULT '0',
+  `eid` INT NULL DEFAULT '0',
+  `subject` TINYTEXT NULL,
+  `message` TEXT NULL,
+  `to` TEXT NULL,
+  `from` TEXT NULL,
+  `submitted` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  `sent` DATETIME NULL DEFAULT '0',
+  PRIMARY KEY (`email_id`)
+)
+  COLLATE='utf8_general_ci'
+  ENGINE=InnoDB
+;
+
+
+
+
 # Replace deleted expenses table
 
 DROP TABLE `expenses_del`;

@@ -12,7 +12,7 @@ use Db;
 
 class Member
 {
-    function getGroupsBalance($uid)
+    function getGroupsBalance($uid, $json = true)
     {
         $groups = $this->getAllGroups($uid);
 
@@ -85,7 +85,7 @@ class Member
             $groups[$gid]['categories'][$category['cid']] = $category;
         }
 
-        return json_encode($groups, JSON_NUMERIC_CHECK);
+        return $json ? json_encode($groups, JSON_NUMERIC_CHECK) : $groups;
     }
 
     function getMemberDetails($uid)
