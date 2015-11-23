@@ -7,8 +7,8 @@ CREATE TABLE `Email` (
   `eid` INT NULL DEFAULT '0',
   `subject` TINYTEXT NULL,
   `message` TEXT NULL,
-  `to` TEXT NULL,
-  `from` TEXT NULL,
+  `toaddress` TEXT NULL,
+  `fromaddress` TEXT NULL,
   `submitted` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   `sent` DATETIME NULL DEFAULT '0',
   PRIMARY KEY (`email_id`)
