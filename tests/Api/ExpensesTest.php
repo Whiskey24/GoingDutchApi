@@ -222,7 +222,7 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
     public function AddExpense($type, $delete = true)
     {
         $newExpense = array(
-            'etitle' => utf8_encode('Test Expense 123 äëö!'),
+            'etitle' => utf8_encode('Test Expense 123 ï¿½ï¿½ï¿½!'),
             'amount' => 100,
             'timezoneoffset' => 120,
             'event_id' => 0,
@@ -285,7 +285,7 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
                 $this->assertSame(array_diff($expected, $actual), array_diff($actual, $expected));
             }
             else {
-                $this->assertEquals($val, $expense[$key], "AddExpense type={$type}: '{$key}' not equal to value of added expense (expected {$val}, got $expense[$key])");
+                $this->assertEquals($val, utf8_decode($expense[$key]), "AddExpense type={$type}: '{$key}' not equal to value of added expense (expected {$val}, got " . utf8_decode($expense[$key]) .  ")");
             }
 
         }

@@ -109,7 +109,7 @@ class Group
                 ':cid' => $expense->cid,
                 ':user_id' => $expense->uid,
                 ':group_id' => $gid,
-                ':description' => utf8_decode($expense->etitle),
+                ':description' => $expense->etitle,
                 ':amount' => $expense->amount,
                 ':created' => $expense->ecreated,
                 ':updated' => $expense->eupdated,
@@ -149,7 +149,7 @@ class Group
                 ':user_id' => $expense['uid'],
                 ':group_id' => $expense['gid'],
                 ':uids' => $expense['uids'],
-                ':description' => utf8_decode($expense['etitle']),
+                ':description' => $expense['etitle'],
                 ':amount' => $expense['amount'],
                 ':created' => $expense['ecreated'],
                 ':updated' => $expense['eupdated'],
@@ -189,7 +189,7 @@ class Group
                 ':cid' => $expense->cid,
                 ':user_id' => $expense->uid,
                 ':group_id' => $gid,
-                ':description' => utf8_decode($expense->etitle),
+                ':description' => $expense->etitle,
                 ':amount' => $expense->amount,
                 ':event_id' => $expense->event_id,
                 ':timezoneoffset' => $expense->timezoneoffset,
@@ -225,7 +225,7 @@ class Group
                 ':group_id' => $gid
             )
         );
-        $result= $stmt->fetchColumn();
+        $result = $stmt->fetchColumn();
         $validUids = explode(',', $result);
         foreach ($uids as $uid){
             if (!in_array($uid, $validUids))
@@ -243,11 +243,25 @@ class Group
         $uid = array_pop(array_values($uids));
         $member = new \Models\Member();
         $groupsInfo = $member->getGroupsBalance($uid, false);
-        $currency = $groupsInfo[$expense->gid]['currency'];
+
         $groupName = $groupsInfo[$expense->gid]['name'];
         $subject = "Going Dutch expense booked in group \"{$groupName}\"";
-        $created = $expense->ecreated;
+        $created =  date('l jS \of F Y', $expense->ecreated);
         $from = 'goingdutch@santema.eu';
+
+        // PHP Fatal error:  Class 'Models\NumberFormatter' not found
+        // You just need to enable this extension in php.ini by uncommenting this line:
+        //extension=ext/php_intl.dll
+        $formatter = new \NumberFormatter('nl_NL', \NumberFormatter::CURRENCY);
+        $amount = $formatter->formatCurrency($expense->amount, $groupsInfo[$expense->gid]['currency']);
+
+//        $locale = 'nl-NL'; //browser or user locale
+//        $currency = $groupsInfo[$expense->gid]['currency'];
+//        $fmt = new \NumberFormatter( $locale."@currency=$currency", \NumberFormatter::CURRENCY );
+//        $cSymbol = $fmt->getSymbol(\NumberFormatter::CURRENCY_SYMBOL);
+        //header("Content-Type: text/html; charset=UTF-8;");
+        //echo $symbol;
+
 
         $messageTemplate  = "On {date} {eowner} booked an expense of {amount} with description \"{description}\".<br /><br />";
         $messageTemplate .= "You were listed as a participant, together with {participants}.<br /><br />";
@@ -258,34 +272,41 @@ class Group
         foreach ($uids as $uid) {
             $message = str_replace('{date}', $created, $messageTemplate);
             $message = str_replace('{eowner}', $expense->uid == $uid ? "you" : $uidDetails[$uid]['realname'], $message);
-            $message = str_replace('{amount}', $currency . $expense->amount, $message);
-            $message = str_replace('{description}', utf8_decode($expense->etitle), $message);
+            $message = str_replace('{amount}', $amount, $message);
+            $message = str_replace('{description}', $expense->etitle, $message);
 
             $to = $uidDetails[$uid]['email'];
 
-            $sql = "INSERT INTO email (gid , eid, subject, message, toaddress, fromaddress) VALUES (:gid, :eid, :subject, :message, :toaddress, :fromaddress)";
-//            $stmt = Db::getInstance()->prepare($sql);
-//            $stmt->execute(
-//                array(
-//                    ':gid' => $expense->gid,
-//                    ':eid' => $eid,
-//                    ':subject' => $subject,
-//                    ':message' => $message,
-//                    ':to' => $to,
-//                    ':from' => $from
-//                )
-//            );
-
-            error_log($this->pdo_sql_debug($sql,
-                                array(
+            $sql = "INSERT INTO email (gid , eid, subject, message, toaddress, fromaddress, submitted)
+                    VALUES (:gid, :eid, :subject, :message, :toaddress, :fromaddress, FROM_UNIXTIME(:submitted))";
+//            $sql = "INSERT INTO email (gid , eid)
+//                    VALUES (:gid, :eid)";
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(
+                array(
                     ':gid' => $expense->gid,
                     ':eid' => $eid,
                     ':subject' => $subject,
                     ':message' => $message,
                     ':toaddress' => $to,
-                    ':fromaddress' => $from
+                    ':fromaddress' => $from,
+                    ':submitted' => time(),
                 )
-            ));
+            );
+//            error_log($amount);
+//            error_log(utf8_decode($amount));
+
+//            error_log($this->pdo_sql_debug($sql,
+//                                array(
+//                    ':gid' => $expense->gid,
+//                    ':eid' => $eid,
+////                    ':subject' => $subject,
+////                    ':message' => $message,
+////                    ':toaddress' => $to,
+////                    ':fromaddress' => $from,
+////                    ':submitted' => time()
+//                )
+//            ));
         }
 
 
