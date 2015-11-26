@@ -42,11 +42,6 @@ class Group
         $stmt->execute(array(':gid' => $gid));
         // put the results in an array with gid as key
         $expense_list = array($gid => $stmt->fetchAll(\PDO::FETCH_ASSOC));
-        foreach ($expense_list[$gid] as $key => $expense)
-        {
-            $expense_list[$gid][$key]['etitle'] = utf8_encode($expense['etitle']);
-        }
-        //$expense_list = Member::rearrangeArrayKey('eid', $expense_list);
         return json_encode($expense_list, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     }
 
@@ -57,10 +52,6 @@ class Group
         $stmt->execute(array(':gid' => $gid));
         // put the results in an array with gid as key
         $expense_list = array($gid => $stmt->fetchAll(\PDO::FETCH_ASSOC));
-        foreach ($expense_list[$gid] as $key => $expense)
-        {
-            $expense_list[$gid][$key]['etitle'] = utf8_encode($expense['etitle']);
-        }
         //$expense_list = Member::rearrangeArrayKey('eid', $expense_list);
         return json_encode($expense_list, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     }
@@ -71,7 +62,6 @@ class Group
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':gid' => $gid, ':eid' => $eid));
         $expense = $stmt->fetch(\PDO::FETCH_ASSOC);
-        $expense['etitle'] = utf8_encode($expense['etitle']);
         if ($json)
             return json_encode($expense, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
         else
@@ -84,7 +74,6 @@ class Group
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':gid' => $gid, ':eid' => $eid));
         $expense = $stmt->fetch(\PDO::FETCH_ASSOC);
-        $expense['etitle'] = utf8_encode($expense['etitle']);
         if ($json)
             return json_encode($expense, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
         else
