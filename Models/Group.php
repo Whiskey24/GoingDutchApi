@@ -224,15 +224,16 @@ class Group
     }
 
     private function addExpenseEmail($expense, $eid){
-        $uidDetails = $this->getUserDetails($expense->uids);
+        // error_log("START WITH EID " . $eid);
 
-
-        //        error_log( print_r($uidDetails, 1));
         $uids = explode(',', $expense->uids);
         $uid = array_pop(array_values($uids));
         $member = new \Models\Member();
         $groupsInfo = $member->getGroupsBalance($uid, false);
 
+        $uidDetails = $this->getUserDetails(implode(',', array_keys($groupsInfo[$expense->gid]['members'])));
+
+        // error_log(print_r($groupsInfo, 1));
         $groupName = $groupsInfo[$expense->gid]['name'];
         $subject = "Going Dutch expense booked in group \"{$groupName}\"";
         $created =  date('l jS \of F Y', $expense->ecreated);
@@ -243,33 +244,84 @@ class Group
         //extension=ext/php_intl.dll
         $formatter = new \NumberFormatter('nl_NL', \NumberFormatter::CURRENCY);
         $amount = $formatter->formatCurrency($expense->amount, $groupsInfo[$expense->gid]['currency']);
+        $amountpp = $formatter->formatCurrency($expense->amount/count($uids), $groupsInfo[$expense->gid]['currency']);
 
-//        $locale = 'nl-NL'; //browser or user locale
-//        $currency = $groupsInfo[$expense->gid]['currency'];
-//        $fmt = new \NumberFormatter( $locale."@currency=$currency", \NumberFormatter::CURRENCY );
-//        $cSymbol = $fmt->getSymbol(\NumberFormatter::CURRENCY_SYMBOL);
-        //header("Content-Type: text/html; charset=UTF-8;");
-        //echo $symbol;
+        $messageTemplate  = "On {date} {eowner} made an expense of {amount} with description \"{description}\".<br /><br />\n";
 
+        if (count($uids) == 1) {
+            $messageTemplateOnlyPay = $messageTemplate . "{participants} was listed as the only participant (but you paid).<br /><br />\n";
+            $messageTemplate .= "You were listed as the only participant.<br /><br />\n";
+        }
+        else {
+            $messageTemplateOnlyPay = $messageTemplate . "{participants} were listed as the participants (but you paid).<br /><br />";
+            $messageTemplate .= "You were listed as a participant, together with {participants}.<br /><br />\n";
+        }
+        $messageTemplateEnd = "The costs per person are {amountpp} making your balance {yourbalance} which comes to position {yourposition} in the group.\n";
+        $messageTemplateEnd .= "The balance list is now: <br /><br />{balancelist}\n";
+        $messageTemplate .= $messageTemplateEnd;
+        $messageTemplateOnlyPay .= $messageTemplateEnd;
 
-        $messageTemplate  = "On {date} {eowner} booked an expense of {amount} with description \"{description}\".<br /><br />";
-        $messageTemplate .= "You were listed as a participant, together with {participants}.<br /><br />";
-        $messageTemplate .= "The costs per person are {amountpp} making your balance {yourbalance} which comes to position {yourposition} in the group. ";
-        $messageTemplate .= "The balance list is now: <br /><br />{balancelist}";
         //$message .= "<br /><br /><a href=\"".LOGIN_URL."\">Going Dutch</a>";
 
+        $posArray = array();
+        $balanceTable = "\n<table>\n";
+        $i = 1;
+        // error_log(print_r($uidDetails,1));
+        foreach ($groupsInfo[$expense->gid]['members'] as $member){
+            $posArray[$member['uid']] = $i;
+            $b = $formatter->formatCurrency($member['balance'], $groupsInfo[$expense->gid]['currency']);
+            $balanceTable .= "<tr><td>{$i}</td><td>{$uidDetails[$member['uid']]['realname']}</td><td>{$b}</td></tr>\n";
+            $i++;
+        }
+        $balanceTable .= "</table>\n";
+        
+        $onlyPay = false;
+        if (!in_array($expense->uid, $uids)){
+            $onlyPay = true;
+            $uids[] = $expense->uid;
+        }
         foreach ($uids as $uid) {
-            $message = str_replace('{date}', $created, $messageTemplate);
-            $message = str_replace('{eowner}', $expense->uid == $uid ? "you" : $uidDetails[$uid]['realname'], $message);
-            $message = str_replace('{amount}', $amount, $message);
-            $message = str_replace('{description}', $expense->etitle, $message);
+            if ($onlyPay && $uid == $expense->uid){
+                $message = str_replace('{date}', $created, $messageTemplateOnlyPay);
+            } else {
+                $message = str_replace('{date}', $created, $messageTemplate);
+            }
 
+            $yourBalance = $formatter->formatCurrency($groupsInfo[$expense->gid]['members'][$uid]['balance'], $groupsInfo[$expense->gid]['currency']);
+
+            $message = str_replace('{eowner}', $expense->uid == $uid ? "you" : $uidDetails[$expense->uid]['realname'], $message);
+            $message = str_replace('{amount}', $amount, $message);
+            $message = str_replace('{amountpp}', $amountpp, $message);
+            $message = str_replace('{yourbalance}', $yourBalance, $message);
+            $message = str_replace('{description}', $expense->etitle, $message);
+            $message = str_replace('{yourposition}', $posArray[$uid], $message);
+            $message = str_replace('{balancelist}', $balanceTable, $message);
+            $participants = '';
+
+            $count = count($uids) - ($onlyPay ? 1 : 0);
+            // error_log("EID: " . $eid . " COUNT: " . $count . " Onlypay: " . $onlyPay . " Uids: " . implode(",", $uids) . ' UID: ' . $expense->uid);
+            if ($count > 1) {
+                // error_log("EID: " .  $eid . " COUNT: " . $count . " Onlypay: " . $onlyPay . " Uids: " . implode(",", $uids) . ' UID: ' . $expense->uid);
+
+                foreach ($uids as $uidP) {
+                    if ($uid == $uidP || ($onlyPay && $uidP == $expense->uid))
+                        continue;
+                    $participants[] = $uidDetails[$uidP]['realname'];
+                }
+                $last = array_pop($participants);
+                $participants = count($participants) ? implode(", ", $participants) . " and " . $last : $last;
+            } elseif ($count == 1 && $onlyPay) {
+                foreach ($uids as $uidP) {
+                    if ($uidP != $expense->uid) {
+                        $participants = $uidDetails[$uidP]['realname'];
+                    }
+                }
+            }
+            $message = str_replace('{participants}', $participants, $message);
             $to = $uidDetails[$uid]['email'];
 
             $sql = "INSERT INTO email (gid , eid, subject, message, toaddress, fromaddress, submitted)
                     VALUES (:gid, :eid, :subject, :message, :toaddress, :fromaddress, FROM_UNIXTIME(:submitted))";
-//            $sql = "INSERT INTO email (gid , eid)
-//                    VALUES (:gid, :eid)";
             $stmt = Db::getInstance()->prepare($sql);
             $stmt->execute(
                 array(
@@ -282,42 +334,7 @@ class Group
                     ':submitted' => time(),
                 )
             );
-//            error_log($amount);
-//            error_log(utf8_decode($amount));
-
-//            error_log($this->pdo_sql_debug($sql,
-//                                array(
-//                    ':gid' => $expense->gid,
-//                    ':eid' => $eid,
-////                    ':subject' => $subject,
-////                    ':message' => $message,
-////                    ':toaddress' => $to,
-////                    ':fromaddress' => $from,
-////                    ':submitted' => time()
-//                )
-//            ));
         }
-
-
-//
-//        $sql = "INSERT INTO expenses (type, cid, user_id, group_id, description, amount, expense_date, event_id, timestamp, currency, timezoneoffset)
-//                VALUES (:type, :cid, :user_id, :group_id, :description, :amount, FROM_UNIXTIME(:created), :event_id, FROM_UNIXTIME(:updated), :currency, :timezoneoffset)";
-//        $stmt = Db::getInstance()->prepare($sql);
-//        $stmt->execute(
-//            array(
-//                ':type' => $expense->type,
-//                ':cid' => $expense->cid,
-//                ':user_id' => $expense->uid,
-//                ':group_id' => $gid,
-//                ':description' => utf8_decode($expense->etitle),
-//                ':amount' => $expense->amount,
-//                ':created' => $expense->ecreated,
-//                ':updated' => $expense->eupdated,
-//                ':event_id' => $expense->event_id,
-//                ':timezoneoffset' => $expense->timezoneoffset,
-//                ':currency' => 1
-//            )
-//        );
     }
 
 
