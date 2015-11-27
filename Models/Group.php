@@ -157,6 +157,9 @@ class Group
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':eid' => $eid));
 
+        $expense = json_decode(json_encode($expense), FALSE);
+        $this->addExpenseEmail($expense, $eid, 'delete');
+
         return $eid;
     }
 
@@ -200,6 +203,8 @@ class Group
             $stmt->execute(array(':user_id' => $user_id, ':eid' => $expense->eid));
         }
 
+        $this->addExpenseEmail($expense, $expense->eid, 'update');
+
         return $this->getExpense($gid, $expense->eid);
     }
 
@@ -223,7 +228,7 @@ class Group
         return true;
     }
 
-    private function addExpenseEmail($expense, $eid){
+    private function addExpenseEmail($expense, $eid, $type = 'add'){
         // error_log("START WITH EID " . $eid);
 
         $uids = explode(',', $expense->uids);
@@ -235,7 +240,7 @@ class Group
 
         // error_log(print_r($groupsInfo, 1));
         $groupName = $groupsInfo[$expense->gid]['name'];
-        $subject = "Going Dutch expense booked in group \"{$groupName}\"";
+
         $created =  date('l jS \of F Y', $expense->ecreated);
         $from = 'goingdutch@santema.eu';
 
@@ -246,7 +251,22 @@ class Group
         $amount = $formatter->formatCurrency($expense->amount, $groupsInfo[$expense->gid]['currency']);
         $amountpp = $formatter->formatCurrency($expense->amount/count($uids), $groupsInfo[$expense->gid]['currency']);
 
-        $messageTemplate  = "On {date} {eowner} made an expense of {amount} with description \"{description}\".<br /><br />\n";
+        switch($type) {
+            case 'update':
+                $subject = "Going Dutch expense updated in group \"{$groupName}\"";
+                $messageTemplate  = "The expense made on {date} by {eowner} with {amount} and description \"{description}\" has been updated.<br /><br />\n";
+                $messageTemplateEnd = "The costs per person are {amountpp} making your current balance {yourbalance} which comes to position {yourposition} in the group.\n";
+                break;
+            case 'delete':
+                $subject = "Going Dutch expense deleted in group \"{$groupName}\"";
+                $messageTemplate  = "The expense on {date} made by {eowner} with {amount} and description \"{description}\" has been deleted.<br /><br />\n";
+                $messageTemplateEnd = "The costs per person were {amountpp} making your current balance {yourbalance} which comes to position {yourposition} in the group.\n";
+            break;
+            default:
+                $subject = "Going Dutch expense booked in group \"{$groupName}\"";
+                $messageTemplate  = "On {date} {eowner} made an expense of {amount} with description \"{description}\".<br /><br />\n";
+                $messageTemplateEnd = "The costs per person are {amountpp} making your current balance {yourbalance} which comes to position {yourposition} in the group.\n";
+        }
 
         if (count($uids) == 1) {
             $messageTemplateOnlyPay = $messageTemplate . "{participants} was listed as the only participant (but you paid).<br /><br />\n";
@@ -256,8 +276,9 @@ class Group
             $messageTemplateOnlyPay = $messageTemplate . "{participants} were listed as the participants (but you paid).<br /><br />";
             $messageTemplate .= "You were listed as a participant, together with {participants}.<br /><br />\n";
         }
-        $messageTemplateEnd = "The costs per person are {amountpp} making your balance {yourbalance} which comes to position {yourposition} in the group.\n";
-        $messageTemplateEnd .= "The balance list is now: <br /><br />{balancelist}\n";
+
+        $messageTemplateEnd .= "The balance list is now: <br /><br />{balancelist}\n<br /><br />\n";
+        $messageTemplateEnd .= "This expense is logged with id {eid}.";
         $messageTemplate .= $messageTemplateEnd;
         $messageTemplateOnlyPay .= $messageTemplateEnd;
 
@@ -274,7 +295,7 @@ class Group
             $i++;
         }
         $balanceTable .= "</table>\n";
-        
+
         $onlyPay = false;
         if (!in_array($expense->uid, $uids)){
             $onlyPay = true;
@@ -296,6 +317,7 @@ class Group
             $message = str_replace('{description}', $expense->etitle, $message);
             $message = str_replace('{yourposition}', $posArray[$uid], $message);
             $message = str_replace('{balancelist}', $balanceTable, $message);
+            $message = str_replace('{eid}', $eid, $message);
             $participants = '';
 
             $count = count($uids) - ($onlyPay ? 1 : 0);
