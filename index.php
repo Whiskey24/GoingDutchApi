@@ -1,6 +1,8 @@
 <?php
-require 'vendor/autoload.php';
-require 'Db/Db.php';
+require_once 'vendor/autoload.php';
+require_once 'Db/Db.php';
+//require_once 'sendmail.php';
+
 
 //require 'RedBeanPHP/rb.php';
 
@@ -9,6 +11,8 @@ require 'Db/Db.php';
 //R::freeze(true);
 
 // ToDo: use this for compression - http://pieroxy.net/blog/pages/lz-string/index.html
+
+
 
 $app = new \Slim\App();
 $auth = new \Middleware\Authenticate();

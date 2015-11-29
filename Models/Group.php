@@ -261,7 +261,7 @@ class Group
                 $subject = "Going Dutch expense updated in group \"{$groupName}\"";
                 $messageTemplate  = "The expense made on {date} by {eowner} with {amount} and description \"{description}\" has been updated.<br /><br />\n{removed}";
                 $messageTemplateEnd = "The costs per person are {amountpp} making your current balance {yourbalance} which comes to position {yourposition} in the group.\n";
-                error_log("Removed UIDS: " + implode(', ', $removedUids));
+                // error_log("Removed UIDS: " + implode(', ', $removedUids));
                 break;
             case 'delete':
                 $subject = "Going Dutch expense deleted in group \"{$groupName}\"";
@@ -297,6 +297,8 @@ class Group
         foreach ($groupsInfo[$expense->gid]['members'] as $member){
             $posArray[$member['uid']] = $i;
             $b = $formatter->formatCurrency($member['balance'], $groupsInfo[$expense->gid]['currency']);
+            // $style = $i < 0 ? '<style=\"color: red\">' : '<style = \"\">';
+            // $balanceTable .= "<tr><td>{$i}</td><td>{$uidDetails[$member['uid']]['realname']}</td><td>{$style}{$b}</style></td></tr>\n";
             $balanceTable .= "<tr><td>{$i}</td><td>{$uidDetails[$member['uid']]['realname']}</td><td>{$b}</td></tr>\n";
             $i++;
         }
@@ -315,8 +317,9 @@ class Group
             } else {
                 $message = str_replace('{date}', $created, $messageTemplate);
             }
-
+            // $style = $groupsInfo[$expense->gid]['members'][$uid]['balance'] < 0 ? '<style=\"color: red\">' : '<style = \"\">';
             $yourBalance = $formatter->formatCurrency($groupsInfo[$expense->gid]['members'][$uid]['balance'], $groupsInfo[$expense->gid]['currency']);
+            // $yourBalance = $style . $yourBalance . '</style>';
 
             $message = str_replace('{eowner}', $expense->uid == $uid ? "you" : $uidDetails[$expense->uid]['realname'], $message);
             $message = str_replace('{amount}', $amount, $message);
@@ -376,6 +379,15 @@ class Group
                 )
             );
         }
+
+        $file = 'C:\xampp\htdocs\api.gdutch.nl\sendmail.php';
+
+        //$cmd = "/usr/bin/php5 {$background_mailfile} {$user['email']} {$from} \"{$from_name}\" \"{$subject}\" \"{$body}\" \"{$replyto}\" \"{$sendas}\"";
+        //exec("/usr/bin/php {$background_mailfile} {$user['email']} {$from} {$from_name} {$subject} {$body} {$replyto} {$sendas} > {$ouput} &");
+        $cmd = "C:\\xampp\\php\\php.exe {$file}";
+        $output = '/dev/null';
+        // exec("{$cmd} > {$output} &");
+        exec("{$cmd} ");
     }
 
     private function getUserDetails($uids) {
