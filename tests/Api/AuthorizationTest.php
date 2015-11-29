@@ -8,7 +8,7 @@ class AuthorizationTest extends \PHPUnit_Framework_TestCase
 {
     protected $client;
 
-    protected $knownuser = array('name' => 'Whiskey', 'email' => 'test@test.com', 'pass' => 'testpassword');
+    protected $knownuser = array('name' => 'Whiskey', 'email' => 'exitspam-bert@yahoo.com', 'pass' => 'testpassword');
     protected $unknownuser = array('name' => 'whiskea', 'email' => 'test2@test.com', 'pass' => 'testpassword');
 
     protected function setUp()
