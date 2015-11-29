@@ -169,6 +169,11 @@ class Group
             return 'Error: invalid uids';
         }
 
+        $oldExpense = $this->getExpense($gid, $expense->eid, false);
+
+        // keep track of any users removed from this expense
+        $removedUids = array_diff(explode(',', $oldExpense['uids']  . ',' . $oldExpense['uid']), explode(',', $uids));
+
         if (!isset($expense->type))
             $expense->type = 1;
         $sql = "UPDATE expenses SET type=:type, cid=:cid, user_id=:user_id, description=:description, amount=:amount, event_id=:event_id, timestamp=:updated,
@@ -203,7 +208,7 @@ class Group
             $stmt->execute(array(':user_id' => $user_id, ':eid' => $expense->eid));
         }
 
-        $this->addExpenseEmail($expense, $expense->eid, 'update');
+        $this->addExpenseEmail($expense, $expense->eid, 'update', $removedUids);
 
         return $this->getExpense($gid, $expense->eid);
     }
@@ -228,7 +233,7 @@ class Group
         return true;
     }
 
-    private function addExpenseEmail($expense, $eid, $type = 'add'){
+    private function addExpenseEmail($expense, $eid, $type = 'add', $removedUids = array()){
         // error_log("START WITH EID " . $eid);
 
         $uids = explode(',', $expense->uids);
@@ -254,8 +259,9 @@ class Group
         switch($type) {
             case 'update':
                 $subject = "Going Dutch expense updated in group \"{$groupName}\"";
-                $messageTemplate  = "The expense made on {date} by {eowner} with {amount} and description \"{description}\" has been updated.<br /><br />\n";
+                $messageTemplate  = "The expense made on {date} by {eowner} with {amount} and description \"{description}\" has been updated.<br /><br />\n{removed}";
                 $messageTemplateEnd = "The costs per person are {amountpp} making your current balance {yourbalance} which comes to position {yourposition} in the group.\n";
+                error_log("Removed UIDS: " + implode(', ', $removedUids));
                 break;
             case 'delete':
                 $subject = "Going Dutch expense deleted in group \"{$groupName}\"";
@@ -301,6 +307,8 @@ class Group
             $onlyPay = true;
             $uids[] = $expense->uid;
         }
+
+        $uids = array_merge($uids, $removedUids);
         foreach ($uids as $uid) {
             if ($onlyPay && $uid == $expense->uid){
                 $message = str_replace('{date}', $created, $messageTemplateOnlyPay);
@@ -318,15 +326,21 @@ class Group
             $message = str_replace('{yourposition}', $posArray[$uid], $message);
             $message = str_replace('{balancelist}', $balanceTable, $message);
             $message = str_replace('{eid}', $eid, $message);
+            if (in_array($uid, $removedUids)) {
+                $message = str_replace('{removed}', "You are no longer listed as a participant for this expense.<br /><br />\n", $message);
+            } else {
+                $message = str_replace('{removed}', '', $message);
+            }
+
             $participants = '';
 
-            $count = count($uids) - ($onlyPay ? 1 : 0);
+            $count = count($uids) - count($removedUids) - ($onlyPay ? 1 : 0);
             // error_log("EID: " . $eid . " COUNT: " . $count . " Onlypay: " . $onlyPay . " Uids: " . implode(",", $uids) . ' UID: ' . $expense->uid);
             if ($count > 1) {
                 // error_log("EID: " .  $eid . " COUNT: " . $count . " Onlypay: " . $onlyPay . " Uids: " . implode(",", $uids) . ' UID: ' . $expense->uid);
 
                 foreach ($uids as $uidP) {
-                    if ($uid == $uidP || ($onlyPay && $uidP == $expense->uid))
+                    if ($uid == $uidP || ($onlyPay && $uidP == $expense->uid) || in_array($uidP, $removedUids))
                         continue;
                     $participants[] = $uidDetails[$uidP]['realname'];
                 }
@@ -334,13 +348,18 @@ class Group
                 $participants = count($participants) ? implode(", ", $participants) . " and " . $last : $last;
             } elseif ($count == 1 && $onlyPay) {
                 foreach ($uids as $uidP) {
-                    if ($uidP != $expense->uid) {
+                    if ($uidP != $expense->uid && !in_array($uidP, $removedUids)) {
                         $participants = $uidDetails[$uidP]['realname'];
                     }
                 }
             }
             $message = str_replace('{participants}', $participants, $message);
             $to = $uidDetails[$uid]['email'];
+
+            if (in_array($uid, $removedUids)){
+                $message = preg_replace('/You were listed .*<br \/>/', '', $message);
+                $message = preg_replace('/The costs per person .* current balance/', 'Your current balance is now', $message);
+            }
 
             $sql = "INSERT INTO email (gid , eid, subject, message, toaddress, fromaddress, submitted)
                     VALUES (:gid, :eid, :subject, :message, :toaddress, :fromaddress, FROM_UNIXTIME(:submitted))";
@@ -359,9 +378,7 @@ class Group
         }
     }
 
-
     private function getUserDetails($uids) {
-
         $sql = "SELECT user_id, email, username, realname FROM users WHERE FIND_IN_SET (user_id, :uids)";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(

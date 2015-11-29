@@ -329,7 +329,14 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
         foreach ($this->expenseKeysToCheck as $key) {
             if ($key == 'deposit_count')
                 continue;
-            $this->assertEquals($resultArray[$key], $expense[$key], "'{$key}' not equal to expected in deleted expense #{$newEid} ");
+            if ($key == 'uids'){
+                $actual = explode(',', $expense['uids']);
+                $expected = explode(',', $resultArray['uids']);
+                $this->assertSame(array_diff($expected, $actual), array_diff($actual, $expected));
+            }
+            else {
+                $this->assertEquals($resultArray[$key], $expense[$key], "'{$key}' not equal to expected in deleted expense #{$newEid} ");
+            }
         }
 
         return $newEid;
