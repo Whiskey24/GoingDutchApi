@@ -4,3 +4,4 @@ phpunit.xml
 .idea
 clover.xml
 *.ini
+.ini
