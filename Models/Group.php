@@ -13,9 +13,9 @@ use Db;
 class Group
 {
 
-    protected $readExpensesSql = "SELECT expense_id AS eid, group_id as gid, cid, type, description AS etitle, user_id as uid,
+    protected $readExpensesSql = "SELECT expense_id AS eid, group_id AS gid, cid, type, description AS etitle, user_id AS uid,
                 amount, amount, UNIX_TIMESTAMP(expense_date) AS ecreated,
-                UNIX_TIMESTAMP(timestamp) AS eupdated, timezoneoffset, event_id, deposit_id as depid,
+                UNIX_TIMESTAMP(timestamp) AS eupdated, timezoneoffset, event_id, deposit_id AS depid,
                 (SELECT GROUP_CONCAT(DISTINCT users_expenses.user_id)
                     FROM users_expenses, users_groups
                     WHERE users_expenses.user_id = users_groups.user_id AND users_expenses.expense_id = eid
@@ -29,11 +29,13 @@ class Group
                 FROM expenses
                 WHERE expenses.group_id = :gid ";
 
-    protected $readExpensesDelSql = "SELECT expense_id AS eid, group_id as gid, cid, type, description AS etitle, user_id as uid, uids,
+    protected $readExpensesDelSql = "SELECT expense_id AS eid, group_id AS gid, cid, type, description AS etitle, user_id AS uid, uids,
                 amount, amount, UNIX_TIMESTAMP(expense_date) AS ecreated, UNIX_TIMESTAMP(delete_date) AS edeleted,
-                UNIX_TIMESTAMP(timestamp) AS eupdated, timezoneoffset, event_id, deposit_id as depid
+                UNIX_TIMESTAMP(timestamp) AS eupdated, timezoneoffset, event_id, deposit_id AS depid
                 FROM expenses_del
                 WHERE expenses_del.group_id = :gid ";
+
+    protected $updateGroupDetailsSql = "UPDATE groups SET name=:name, description=:description, currency=:currency WHERE group_id=:gid;";
 
     function getExpenses($gid)
     {
@@ -80,9 +82,10 @@ class Group
             return $expense;
     }
 
-    function addExpense($gid, $expense){
+    function addExpense($gid, $expense)
+    {
         $uids = $expense->uids . ',' . $expense->uid;
-        if (!$this->validateUids($uids, $gid)){
+        if (!$this->validateUids($uids, $gid)) {
             return 'Error: invalid uids';
         }
 
@@ -112,7 +115,7 @@ class Group
         $sql = "INSERT INTO users_expenses (user_id , expense_id) VALUES (:user_id, :eid)";
         $stmt = Db::getInstance()->prepare($sql);
         $uids = explode(',', $expense->uids);
-        foreach ($uids as $user_id){
+        foreach ($uids as $user_id) {
             $stmt->execute(array(':user_id' => $user_id, ':eid' => $eid));
         }
 
@@ -163,16 +166,17 @@ class Group
         return $eid;
     }
 
-    function updateExpense($gid, $expense){
+    function updateExpense($gid, $expense)
+    {
         $uids = $expense->uids . ',' . $expense->uid;
-        if (!$this->validateUids($uids, $gid)){
+        if (!$this->validateUids($uids, $gid)) {
             return 'Error: invalid uids';
         }
 
         $oldExpense = $this->getExpense($gid, $expense->eid, false);
 
         // keep track of any users removed from this expense
-        $removedUids = array_diff(explode(',', $oldExpense['uids']  . ',' . $oldExpense['uid']), explode(',', $uids));
+        $removedUids = array_diff(explode(',', $oldExpense['uids'] . ',' . $oldExpense['uid']), explode(',', $uids));
 
         if (!isset($expense->type))
             $expense->type = 1;
@@ -204,7 +208,7 @@ class Group
         $sql = "INSERT INTO users_expenses (user_id , expense_id) VALUES (:user_id, :eid)";
         $stmt = Db::getInstance()->prepare($sql);
         $uids = explode(',', $expense->uids);
-        foreach ($uids as $user_id){
+        foreach ($uids as $user_id) {
             $stmt->execute(array(':user_id' => $user_id, ':eid' => $expense->eid));
         }
 
@@ -213,7 +217,46 @@ class Group
         return $this->getExpense($gid, $expense->eid);
     }
 
-    private function validateUids($uids, $gid) {
+    function updateGroupDetails($groupDetails, $uid)
+    {
+        $uids = array($uid);
+        $gIds = array();
+        // check user requesting change is part of this group
+        foreach ($groupDetails as $detailSet) {
+            if (!$this->validateUids($uids, $detailSet->gid)) {
+                return 'Error: invalid uid';
+            }
+
+            $gIds[] = $detailSet->gid;
+
+            $sql = $this->updateGroupDetailsSql;
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(
+                array(
+                    ':gid' => $detailSet->gid,
+                    ':currency' => $detailSet->currency,
+                    ':name' => substr($detailSet->name, 0, 30),
+                    ':description' => substr($detailSet->description, 0, 60)
+                )
+            );
+        }
+
+        // return  group details for updated groups
+        $gIdStr = implode(',', $gIds);
+        $sql = "SELECT group_id as gid, name, description, currency FROM groups WHERE FIND_IN_SET(group_id, :gIdStr)";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gIdStr' => $gIdStr));
+        $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $return = array();
+        foreach ($result as $group)
+        {
+            $return[$group['gid']] = $group;
+        }
+        return json_encode($return, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+    }
+
+    private function validateUids($uids, $gid)
+    {
         if (!is_array($uids))
             $uids = explode(',', $uids);
         // get member ids for $gid
@@ -226,14 +269,15 @@ class Group
         );
         $result = $stmt->fetchColumn();
         $validUids = explode(',', $result);
-        foreach ($uids as $uid){
+        foreach ($uids as $uid) {
             if (!in_array($uid, $validUids))
                 return false;
         }
         return true;
     }
 
-    private function addExpenseEmail($expense, $eid, $type = 'add', $removedUids = array()){
+    private function addExpenseEmail($expense, $eid, $type = 'add', $removedUids = array())
+    {
         // error_log("START WITH EID " . $eid);
 
         $uids = explode(',', $expense->uids);
@@ -246,7 +290,7 @@ class Group
         // error_log(print_r($groupsInfo, 1));
         $groupName = $groupsInfo[$expense->gid]['name'];
 
-        $created =  date('l jS \of F Y', $expense->ecreated);
+        $created = date('l jS \of F Y', $expense->ecreated);
         $from = 'goingdutch@santema.eu';
 
         // PHP Fatal error:  Class 'Models\NumberFormatter' not found
@@ -254,31 +298,30 @@ class Group
         //extension=ext/php_intl.dll
         $formatter = new \NumberFormatter('nl_NL', \NumberFormatter::CURRENCY);
         $amount = $formatter->formatCurrency($expense->amount, $groupsInfo[$expense->gid]['currency']);
-        $amountpp = $formatter->formatCurrency($expense->amount/count($uids), $groupsInfo[$expense->gid]['currency']);
+        $amountpp = $formatter->formatCurrency($expense->amount / count($uids), $groupsInfo[$expense->gid]['currency']);
 
-        switch($type) {
+        switch ($type) {
             case 'update':
                 $subject = "Going Dutch expense updated in group \"{$groupName}\"";
-                $messageTemplate  = "The expense made on {date} by {eowner} with {amount} and description \"{description}\" has been updated.<br /><br />\n{removed}";
+                $messageTemplate = "The expense made on {date} by {eowner} with {amount} and description \"{description}\" has been updated.<br /><br />\n{removed}";
                 $messageTemplateEnd = "The costs per person are {amountpp} making your current balance {yourbalance} which comes to position {yourposition} in the group.\n";
                 // error_log("Removed UIDS: " + implode(', ', $removedUids));
                 break;
             case 'delete':
                 $subject = "Going Dutch expense deleted in group \"{$groupName}\"";
-                $messageTemplate  = "The expense on {date} made by {eowner} with {amount} and description \"{description}\" has been deleted.<br /><br />\n";
+                $messageTemplate = "The expense on {date} made by {eowner} with {amount} and description \"{description}\" has been deleted.<br /><br />\n";
                 $messageTemplateEnd = "The costs per person were {amountpp} making your current balance {yourbalance} which comes to position {yourposition} in the group.\n";
-            break;
+                break;
             default:
                 $subject = "Going Dutch expense booked in group \"{$groupName}\"";
-                $messageTemplate  = "On {date} {eowner} made an expense of {amount} with description \"{description}\".<br /><br />\n";
+                $messageTemplate = "On {date} {eowner} made an expense of {amount} with description \"{description}\".<br /><br />\n";
                 $messageTemplateEnd = "The costs per person are {amountpp} making your current balance {yourbalance} which comes to position {yourposition} in the group.\n";
         }
 
         if (count($uids) == 1) {
             $messageTemplateOnlyPay = $messageTemplate . "{participants} was listed as the only participant (but you paid).<br /><br />\n";
             $messageTemplate .= "You were listed as the only participant.<br /><br />\n";
-        }
-        else {
+        } else {
             $messageTemplateOnlyPay = $messageTemplate . "{participants} were listed as the participants (but you paid).<br /><br />";
             $messageTemplate .= "You were listed as a participant, together with {participants}.<br /><br />\n";
         }
@@ -294,7 +337,7 @@ class Group
         $balanceTable = "\n<table>\n";
         $i = 1;
         // error_log(print_r($uidDetails,1));
-        foreach ($groupsInfo[$expense->gid]['members'] as $member){
+        foreach ($groupsInfo[$expense->gid]['members'] as $member) {
             $posArray[$member['uid']] = $i;
             $b = $formatter->formatCurrency($member['balance'], $groupsInfo[$expense->gid]['currency']);
             // $style = $i < 0 ? '<style=\"color: red\">' : '<style = \"\">';
@@ -305,14 +348,14 @@ class Group
         $balanceTable .= "</table>\n";
 
         $onlyPay = false;
-        if (!in_array($expense->uid, $uids)){
+        if (!in_array($expense->uid, $uids)) {
             $onlyPay = true;
             $uids[] = $expense->uid;
         }
 
         $uids = array_merge($uids, $removedUids);
         foreach ($uids as $uid) {
-            if ($onlyPay && $uid == $expense->uid){
+            if ($onlyPay && $uid == $expense->uid) {
                 $message = str_replace('{date}', $created, $messageTemplateOnlyPay);
             } else {
                 $message = str_replace('{date}', $created, $messageTemplate);
@@ -359,7 +402,7 @@ class Group
             $message = str_replace('{participants}', $participants, $message);
             $to = $uidDetails[$uid]['email'];
 
-            if (in_array($uid, $removedUids)){
+            if (in_array($uid, $removedUids)) {
                 $message = preg_replace('/You were listed .*<br \/>/', '', $message);
                 $message = preg_replace('/The costs per person .* current balance/', 'Your current balance is now', $message);
             }
@@ -390,7 +433,8 @@ class Group
         exec("{$cmd} ");
     }
 
-    private function getUserDetails($uids) {
+    private function getUserDetails($uids)
+    {
         $sql = "SELECT user_id, email, username, realname FROM users WHERE FIND_IN_SET (user_id, :uids)";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(
@@ -400,7 +444,7 @@ class Group
         );
         $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $uidDetails = array();
-        foreach ($result as $val){
+        foreach ($result as $val) {
             $uidDetails[$val['user_id']] = $val;
         }
         return $uidDetails;
@@ -431,9 +475,10 @@ class Group
 //    }
 
 
-    private function pdo_sql_debug($sql,$placeholders){
-        foreach($placeholders as $k => $v){
-            $sql = preg_replace('/'.$k.'/',"'".$v."'",$sql);
+    private function pdo_sql_debug($sql, $placeholders)
+    {
+        foreach ($placeholders as $k => $v) {
+            $sql = preg_replace('/' . $k . '/', "'" . $v . "'", $sql);
         }
         return $sql;
     }

@@ -30,6 +30,13 @@ $app->get('/groups', function ($request, $response, $args) {
     return $newResponse;
 })->add($auth);
 
+$app->put('/groups', function ($request, $response, $args) {
+    $member = new \Models\Group();
+    $response->write($member->updateGroupDetails($request->getParsedBody(), \Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
 $app->get('/users', function ($request, $response, $args) {
     $member = new \Models\Member();
     $response->write($member->getMemberDetails(\Middleware\Authenticate::$requestUid));
@@ -144,3 +151,22 @@ $app->get('/articles', function ($request, $response, $args) {
  * and returns the HTTP response to the HTTP client.
  */
 $app->run();
+
+
+/*  groups update json
+ {
+	"1": {
+
+		"gid": 1,
+		"currency": "EUR",
+		"name": "Delluf",
+		"description": "Mannenuitjes"
+	},
+	"8": {
+		"gid": 8,
+		"currency": "EUR",
+		"name": "Broers",
+		"description": "Broertjes"
+	}
+}
+ */

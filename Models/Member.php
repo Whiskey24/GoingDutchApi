@@ -33,7 +33,7 @@ class Member
                   AND FIND_IN_SET(users_expenses.user_id, :uids) AND FIND_IN_SET(expenses.group_id, :gids)) AS expenses_summary
                 GROUP BY userid, group_id";
         $stmt = Db::getInstance()->prepare($sql);
-        $stmt->execute(array(':uids' => $user_id_list, 'gids' => $group_id_list));
+        $stmt->execute(array(':uids' => $user_id_list, ':gids' => $group_id_list));
         $expense_summary = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         // setup members array for balance figures
