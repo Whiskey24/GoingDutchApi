@@ -255,6 +255,75 @@ class Group
         return json_encode($return, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     }
 
+    function updateGroupCategories($categories, $gid, $uid)
+    {
+        $uids = array($uid);
+
+        if (!$this->validateUids($uids, $gid)) {
+            return 'Error: invalid uid';
+        }
+
+        if (!is_object($categories)){
+            return 'Error: invalid categories set 1';
+        }
+
+        $keys = array('cid', 'group_id', 'title', 'presents', 'inactive', 'can_delete', 'sort');
+
+        $maxCid = 1;
+        // sanity check on categories array before we delete existing values and get max cid
+        foreach ($categories as $category){
+            foreach ($keys as $key){
+                if (!array_key_exists($key, $category)){
+                    return 'Error: invalid categories set ' . $key;
+                }
+            }
+            $maxCid = $category->cid > $maxCid ? $category->cid : $maxCid;
+        }
+        $maxCid++;
+
+        // delete current categories for this group
+        $sql = "DELETE FROM categories WHERE group_id = :gid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $gid));
+
+        $sql = "INSERT INTO categories (cid, group_id, title, presents, inactive, can_delete, sort)
+                VALUES (:cid, :gid, :title, :presents, :inactive, :can_delete, :sort)";
+        $stmt = Db::getInstance()->prepare($sql);
+
+        foreach ($categories as $category){
+            // check for new categories
+            if ($category->cid == 0) {
+                $cid = $maxCid;
+                $maxCid++;
+            } else {
+                $cid = $category->cid;
+            }
+
+            $stmt->execute(array(
+                ':cid' => $cid,
+                ':gid' => $category->group_id,
+                ':title' => $category->title,
+                ':presents' => $category->presents,
+                ':inactive' => $category->inactive,
+                ':can_delete' => $category->can_delete,
+                ':sort' => $category->sort
+            ));
+        }
+
+        // return  category details for updated group
+        $sql = "SELECT * FROM categories WHERE group_id = :gid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $gid));
+        $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $return = array();
+        foreach ($result as $category)
+        {
+            $return[$category['cid']] = $category;
+        }
+        return json_encode($return, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+    }
+
+
     private function validateUids($uids, $gid)
     {
         if (!is_array($uids))

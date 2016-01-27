@@ -85,7 +85,6 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
 
     }
 
-
     public function testUpdateGroupDetails()
     {
         $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
@@ -130,8 +129,106 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         // restore old values
         $response = $this->client->request('PUT', "/groups", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $currentDetails]);
         $content = $response->getBody()->getContents();
-
     }
 
+    public function testUpdateGroupCategories()
+    {
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        $group = array_shift($resultArray);
+        $gid = $group['gid'];
+
+        $currentCategories = $group['categories'];
+        $newCategories = $currentCategories;
+        $count = 1;
+
+        foreach ($newCategories as &$category){
+            $category['title'] = $category['title'] . ' #' . $count;
+            $category['sort'] = $category['sort']++;
+            $count++;
+        }
+
+        $response = $this->client->request('PUT', "/group/{$gid}/categories", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newCategories]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        // check the values of each category
+        foreach ($newCategories as $category){
+            $this->assertArrayHasKey($category['cid'], $resultArray, "UpdateGroupCategories: Category id key '{$category['cid']}' not found in returned array");
+            foreach ($category as $key => $value){
+                $this->assertEquals($value, $resultArray[$category['cid']][$key], "UpdateGroupCategories: '{$key}' not equal to value of updated category (expected {$value}, got {$resultArray[$category['cid']][$key]})");
+            }
+        }
+
+        // restore old values
+        $response = $this->client->request('PUT', "/group/{$gid}/categories", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $currentCategories]);
+        $content = $response->getBody()->getContents();
+    }
+
+    public function testAddGroupCategory()
+    {
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        $group = array_pop($resultArray);
+        $gid = $group['gid'];
+
+        $currentCategories = $group['categories'];
+        $newCategories = $currentCategories;
+
+        // change sort so new category is first
+        foreach ($newCategories as &$category){
+            $category['sort'] = $category['sort']++;
+        }
+
+        $extraCategory = array(
+            "cid" => 0,
+            "group_id" => $gid,
+            "title" => "New category!",
+            "presents" => 0,
+            "inactive" => 0,
+            "can_delete" => 0,
+            "sort" => 1
+        );
+
+        $allCategories = $newCategories;
+        $allCategories[] = $extraCategory;
+
+        $response = $this->client->request('PUT', "/group/{$gid}/categories", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $allCategories]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        // check the values of each existing category
+        foreach ($newCategories as $category){
+            $this->assertArrayHasKey($category['cid'], $resultArray, "testAddGroupCategory: Category id key '{$category['cid']}' not found in returned array for group {$gid}");
+            foreach ($category as $key => $value){
+                $this->assertEquals($value, $resultArray[$category['cid']][$key], "testAddGroupCategory: '{$key}' not equal to value of updated category for group {$gid} (expected {$value}, got {$resultArray[$category['cid']][$key]})");
+            }
+        }
+
+        // remove checked categories
+        foreach ($newCategories as $key => $category){
+            unset($resultArray[$key]);
+        }
+
+        // check only one category left
+        $leftCount = count($resultArray);
+        $this->assertEquals(1, $leftCount, "testAddGroupCategory: expected 1 added category, but got {$leftCount})");
+
+        // check newly added category
+        $newCategory = array_pop($resultArray);
+        foreach ($newCategory as $key => $value){
+            if ($key == 'cid')
+                continue;
+            $this->assertEquals($value, $extraCategory[$key], "testAddGroupCategory: '{$key}' not equal to value of extra added category (expected {$value}, got {$extraCategory[$key]})");
+        }
+
+        // restore old values
+        $response = $this->client->request('PUT', "/group/{$gid}/categories", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $currentCategories]);
+        $content = $response->getBody()->getContents();
+    }
 
 }
