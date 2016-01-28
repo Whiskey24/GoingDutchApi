@@ -106,6 +106,36 @@ class Member
         return json_encode($users, JSON_NUMERIC_CHECK);
     }
 
+    function updateGroupSort($groups, $uidToUpdate, $uidRequester){
+
+        if ($uidToUpdate != $uidRequester) {
+            return 'Error: invalid uid';
+        }
+
+        $sql = "UPDATE users_groups SET `sort`=:sort WHERE user_id=:uid AND group_id=:group_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        foreach ($groups as $group) {
+            $stmt->execute(
+                array(
+                    ':sort' => $group->sort,
+                    ':uid' => $uidToUpdate,
+                    ':group_id' => $group->gid,
+                )
+            );
+        }
+
+        $sql = "SELECT group_id as gid, `sort` FROM users_groups WHERE user_id=:uid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':uid' => $uidToUpdate));
+        $resultArray  = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $groups = array();
+        foreach ($resultArray as $group)
+        {
+            $groups[$group['gid']] = $group;
+        }
+        return json_encode($groups, JSON_NUMERIC_CHECK);
+    }
+
     /*
      * Get all the groups for this user in an associative array
      */

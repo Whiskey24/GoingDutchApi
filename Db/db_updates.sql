@@ -51,6 +51,9 @@ ALTER TABLE `groups` ADD COLUMN `currency` VARCHAR(6) NOT NULL DEFAULT 'EUR' AFT
 # Add sort to user groups
 ALTER TABLE `users_groups` ADD COLUMN `sort` INT(3) NOT NULL AFTER `group_id`;
 
+# Make sure join date is not overwritten with sort updates
+ALTER TABLE `users_groups` CHANGE COLUMN `join_date` `join_date` TIMESTAMP NULL AFTER `removed`;
+
 # Add updated, firstname and lastname column to users
 ALTER TABLE `users` ADD COLUMN `updated` INT(11) NOT NULL DEFAULT '0' AFTER `last_login`;
 ALTER TABLE `users`ADD COLUMN `firstName` VARCHAR(100) NOT NULL AFTER `realname`,

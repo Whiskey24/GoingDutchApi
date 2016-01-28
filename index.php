@@ -44,6 +44,13 @@ $app->get('/users', function ($request, $response, $args) {
     return $newResponse;
 })->add($auth);
 
+$app->put('/user/{uid}/groups', function ($request, $response, $args) {
+    $member = new \Models\Member();
+    $response->write($member->updateGroupSort($request->getParsedBody(), $args['uid'], \Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
 $app->put('/group/{gid}/categories', function ($request, $response, $args) {
     $member = new \Models\Group();
     $response->write($member->updateGroupCategories($request->getParsedBody(), $args['gid'], \Middleware\Authenticate::$requestUid));
@@ -160,7 +167,9 @@ $app->get('/articles', function ($request, $response, $args) {
 $app->run();
 
 
-/*  groups update json
+/*
+
+groups update json
  {
 	"1": {
 
@@ -174,6 +183,18 @@ $app->run();
 		"currency": "EUR",
 		"name": "Broers",
 		"description": "Broertjes"
+	}
+}
+
+member groups update json
+{
+	"1": {
+		"gid": 1,
+		"sort": 1,
+	},
+	"8": {
+		"gid": 8,
+		"sort": 2,
 	}
 }
  */
