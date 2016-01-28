@@ -279,7 +279,49 @@ class Group
             }
             $maxCid = $category->cid > $maxCid ? $category->cid : $maxCid;
         }
-        $maxCid++;
+        $maxCid++;  // keep track of new cid to use in case we're adding a new category
+
+        // get current list of categories and check if any have been deleted
+
+        $sql = "SELECT * FROM categories WHERE group_id = :gid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $gid));
+        $resultArray  = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $CurrentCategories = array();
+        foreach ($resultArray as $category)
+        {
+            $CurrentCategories[$category['cid']] = $category;
+        }
+        $currentCatIds = array_keys($CurrentCategories);
+
+        // check cids in each category as multiple new categories could have been added (they will have cid 0)
+        $newIds = array();
+        foreach ($categories as $category)
+        {
+            if ($category->cid > 0)
+                $newIds[] = $category->cid;
+        }
+        $diff = array_diff($currentCatIds, $newIds);
+
+//        if (count($diff) > 0){
+//            error_log("Categories in group {$gid} that are scheduled for deletion: " . implode(',', $diff));
+//        }
+
+        // check if categories scheduled for deletion are not used by any expenses
+        $cannotDeleteCats = array();
+        foreach ($diff as $catId) {
+            $sql = "SELECT COUNT(*) FROM expenses WHERE group_id = :gid AND cid = :cid";
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(array(':gid' => $gid, ':cid' => $catId));
+            $result = $stmt->fetch(\PDO::FETCH_NUM);
+            $expenseCount = $result[0];
+            if ($expenseCount > 0){
+                // error_log('Error: expenses found for cid ' . $catId . ' in group ' . $gid);
+                // add this category to the list as we are not allowed to delete it
+                $cannotDeleteCats[] = $CurrentCategories[$catId];
+            }
+        }
 
         // delete current categories for this group
         $sql = "DELETE FROM categories WHERE group_id = :gid";
@@ -289,6 +331,18 @@ class Group
         $sql = "INSERT INTO categories (cid, group_id, title, presents, inactive, can_delete, sort)
                 VALUES (:cid, :gid, :title, :presents, :inactive, :can_delete, :sort)";
         $stmt = Db::getInstance()->prepare($sql);
+
+        foreach ($cannotDeleteCats as $category) {
+            $stmt->execute(array(
+                ':cid' => $category['cid'],
+                ':gid' => $category['group_id'],
+                ':title' => $category['title'],
+                ':presents' => $category['presents'],
+                ':inactive' => $category['inactive'],
+                ':can_delete' => $category['can_delete'],
+                ':sort' => $category['sort']
+            ));
+        }
 
         foreach ($categories as $category){
             // check for new categories

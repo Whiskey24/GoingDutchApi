@@ -154,6 +154,11 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
 
+        // check the count of categories
+        $newCatCount = count($newCategories);
+        $resultCatCount = count($resultArray);
+        $this->assertEquals($newCatCount, $resultCatCount, "UpdateGroupCategories: category count of submitted categories ({$newCatCount}) is not equal to count of returned categories ({$resultCatCount})");
+
         // check the values of each category
         foreach ($newCategories as $category){
             $this->assertArrayHasKey($category['cid'], $resultArray, "UpdateGroupCategories: Category id key '{$category['cid']}' not found in returned array");
@@ -201,6 +206,11 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
 
+        // check the count of categories
+        $newCatCount = count($allCategories);
+        $resultCatCount = count($resultArray);
+        $this->assertEquals($newCatCount, $resultCatCount, "AddGroupCategory: category count of submitted categories ({$newCatCount}) is not equal to count of returned categories ({$resultCatCount})");
+
         // check the values of each existing category
         foreach ($newCategories as $category){
             $this->assertArrayHasKey($category['cid'], $resultArray, "testAddGroupCategory: Category id key '{$category['cid']}' not found in returned array for group {$gid}");
@@ -229,6 +239,17 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         // restore old values
         $response = $this->client->request('PUT', "/group/{$gid}/categories", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $currentCategories]);
         $content = $response->getBody()->getContents();
+
+        $resultArray = json_decode($content, true);
+
+        // check the count of categories
+        $newCatCount = count($currentCategories);
+        $resultCatCount = count($resultArray);
+        $this->assertEquals($newCatCount, $resultCatCount, "AddGroupCategory: category count of submitted categories ({$newCatCount}) is not equal to count of returned categories ({$resultCatCount})");
+
     }
+
+    //ToDo: Add test for deleting category that is in use
+    
 
 }
