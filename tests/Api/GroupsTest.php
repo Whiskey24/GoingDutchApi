@@ -14,7 +14,8 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
 
     protected $knownuser = array('name' => 'whiskey', 'pass' => 'testpassword');
     protected $unknownuser = array('name' => 'whiskea', 'pass' => 'testpassword');
-
+    protected $gid = 1;
+    protected $eid = 1;
     protected function setUp()
     {
         $this->client = new GuzzleHttp\Client([
@@ -172,7 +173,7 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $content = $response->getBody()->getContents();
     }
 
-    public function testAddGroupCategory()
+    public function testAddDeleteGroupCategory()
     {
         $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
         $content = $response->getBody()->getContents();
@@ -249,7 +250,34 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
 
     }
 
-    //ToDo: Add test for deleting category that is in use
-    
+    public function testDeleteUsedGroupCategory()
+    {
+        $response = $this->client->get("/group/{$this->gid}/expenses/{$this->eid}", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        $cid = $resultArray['cid'];
+
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        $group = $resultArray[$this->gid];
+        $currentCategories = $group['categories'];
+        $newCategories = $currentCategories;
+        unset($newCategories[$cid]);
+
+        $response = $this->client->request('PUT', "/group/{$this->gid}/categories", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newCategories]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        // check the count of categories
+        $newCatCount = count($newCategories) + 1;   // +1 because the category should not have been deleted
+        $resultCatCount = count($resultArray);
+        $this->assertEquals($newCatCount, $resultCatCount, "DeleteUsedGroupCategory: category count of submitted categories ({$newCatCount}) +1 is not equal to count of returned categories ({$resultCatCount}). Category {$cid} of group {$this->gid} was deleted which should not happen!");
+
+        $response = $this->client->request('PUT', "/group/{$this->gid}/categories", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $currentCategories]);
+        $content = $response->getBody()->getContents();
+    }
 
 }

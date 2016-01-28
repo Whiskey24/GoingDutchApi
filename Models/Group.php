@@ -317,7 +317,7 @@ class Group
             $result = $stmt->fetch(\PDO::FETCH_NUM);
             $expenseCount = $result[0];
             if ($expenseCount > 0){
-                // error_log('Error: expenses found for cid ' . $catId . ' in group ' . $gid);
+                error_log('Error: expenses found for cid ' . $catId . ' in group ' . $gid);
                 // add this category to the list as we are not allowed to delete it
                 $cannotDeleteCats[] = $CurrentCategories[$catId];
             }
