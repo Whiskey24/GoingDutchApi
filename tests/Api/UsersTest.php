@@ -18,7 +18,7 @@ class UsersTest extends \PHPUnit_Framework_TestCase
             'defaults' => ['exceptions' => false]
         ]);
     }
-    
+
     public function testUsersArrayStructure()
     {
         $response = $this->client->get('/users', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);

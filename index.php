@@ -186,7 +186,7 @@ groups update json
 	}
 }
 
-member groups update json
+group categories update json
 {
 	"1": {
 		"gid": 1,
