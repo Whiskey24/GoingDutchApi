@@ -1,7 +1,7 @@
 
 # Add email message table
-
-CREATE TABLE `Email` (
+# Default column for DATETIME will probably fail for older MySQL versions
+CREATE TABLE `email` (
   `email_id` INT NOT NULL AUTO_INCREMENT,
   `gid` INT NOT NULL DEFAULT '0',
   `eid` INT NULL DEFAULT '0',
