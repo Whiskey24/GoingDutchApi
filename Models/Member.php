@@ -12,7 +12,7 @@ use Db;
 
 class Member
 {
-    function getGroupsBalance($uid)
+    function getGroupsBalance($uid, $json = true)
     {
         $groups = $this->getAllGroups($uid);
 
@@ -33,7 +33,7 @@ class Member
                   AND FIND_IN_SET(users_expenses.user_id, :uids) AND FIND_IN_SET(expenses.group_id, :gids)) AS expenses_summary
                 GROUP BY userid, group_id";
         $stmt = Db::getInstance()->prepare($sql);
-        $stmt->execute(array(':uids' => $user_id_list, 'gids' => $group_id_list));
+        $stmt->execute(array(':uids' => $user_id_list, ':gids' => $group_id_list));
         $expense_summary = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         // setup members array for balance figures
@@ -85,7 +85,7 @@ class Member
             $groups[$gid]['categories'][$category['cid']] = $category;
         }
 
-        return json_encode($groups, JSON_NUMERIC_CHECK);
+        return $json ? json_encode($groups, JSON_NUMERIC_CHECK) : $groups;
     }
 
     function getMemberDetails($uid)
@@ -104,6 +104,36 @@ class Member
         $this->realname2firstLastNameHelper($users);
         $users = $this->rearrangeArrayKey('uid', $users);
         return json_encode($users, JSON_NUMERIC_CHECK);
+    }
+
+    function updateGroupSort($groups, $uidToUpdate, $uidRequester){
+
+        if ($uidToUpdate != $uidRequester) {
+            return 'Error: invalid uid';
+        }
+
+        $sql = "UPDATE users_groups SET `sort`=:sort WHERE user_id=:uid AND group_id=:group_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        foreach ($groups as $group) {
+            $stmt->execute(
+                array(
+                    ':sort' => $group->sort,
+                    ':uid' => $uidToUpdate,
+                    ':group_id' => $group->gid,
+                )
+            );
+        }
+
+        $sql = "SELECT group_id as gid, `sort` FROM users_groups WHERE user_id=:uid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':uid' => $uidToUpdate));
+        $resultArray  = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $groups = array();
+        foreach ($resultArray as $group)
+        {
+            $groups[$group['gid']] = $group;
+        }
+        return json_encode($groups, JSON_NUMERIC_CHECK);
     }
 
     /*

@@ -28,10 +28,10 @@ class Db{
 
         if (!self::$instance)
         {
-            $config = parse_ini_file('dbconfig.ini');
-            $a="mysql:host={$config['host']};dbname={$config['dbname']}";
-            self::$instance = new PDO("mysql:host={$config['host']};dbname={$config['dbname']}", $config['user'], $config['pass']);
-            self::$instance-> setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $config = parse_ini_file('dbconfig.ini', true);
+            //$a="mysql:host={$config['database']['host']};dbname={$config['database']['dbname']}";
+            self::$instance = new PDO("mysql:host={$config['database']['host']};dbname={$config['database']['dbname']}", $config['database']['user'], $config['database']['pass'],  array(PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8"));
+            self::$instance-> setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
         }
         return self::$instance;
     }

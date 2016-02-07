@@ -1,6 +1,8 @@
 <?php
-require 'vendor/autoload.php';
-require 'Db/Db.php';
+require_once 'vendor/autoload.php';
+require_once 'Db/Db.php';
+//require_once 'sendmail.php';
+
 
 //require 'RedBeanPHP/rb.php';
 
@@ -10,18 +12,27 @@ require 'Db/Db.php';
 
 // ToDo: use this for compression - http://pieroxy.net/blog/pages/lz-string/index.html
 
-$app = new \Slim\App();
 
+
+$app = new \Slim\App();
 $auth = new \Middleware\Authenticate();
 
 $app->get('/version', function ($request, $response, $args) {
-    $response->write("Going Dutch API v0.1");
+    $id = array('service' => 'Going Dutch API', 'version' =>'0.1', 'uid' => \Middleware\Authenticate::$requestUid);
+    $response->write(json_encode($id));
     return $response;
 })->add($auth);
 
 $app->get('/groups', function ($request, $response, $args) {
     $member = new \Models\Member();
     $response->write($member->getGroupsBalance(\Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->put('/groups', function ($request, $response, $args) {
+    $member = new \Models\Group();
+    $response->write($member->updateGroupDetails($request->getParsedBody(), \Middleware\Authenticate::$requestUid));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;
 })->add($auth);
@@ -33,12 +44,74 @@ $app->get('/users', function ($request, $response, $args) {
     return $newResponse;
 })->add($auth);
 
+$app->put('/user/{uid}/groups', function ($request, $response, $args) {
+    $member = new \Models\Member();
+    $response->write($member->updateGroupSort($request->getParsedBody(), $args['uid'], \Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->put('/group/{gid}/categories', function ($request, $response, $args) {
+    $member = new \Models\Group();
+    $response->write($member->updateGroupCategories($request->getParsedBody(), $args['gid'], \Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
 $app->get('/group/{gid}/expenses', function ($request, $response, $args) {
     $group = new \Models\Group();
     $response->write($group->getExpenses($args['gid']));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;
 })->add($auth);
+
+$app->get('/group/{gid}/expensesdel', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    $response->write($group->getExpensesDel($args['gid']));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->get('/group/{gid}/expenses/{eid}', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    $response->write($group->getExpense($args['gid'], $args['eid']));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->get('/group/{gid}/expensesdel/{eid}', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    $response->write($group->getExpenseDel($args['gid'], $args['eid']));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->post('/group/{gid}/expenses', function ($request, $response, $args) {
+    $group = new \Models\Group();
+//    error_log( "TEST");
+//    error_log( $request->getBody());
+//    error_log( print_r($request->getParsedBody(), 1));
+//    error_log( "TEST2");
+    $response->write($group->addExpense($args['gid'], $request->getParsedBody()));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->put('/group/{gid}/expenses', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    $response->write($group->updateExpense($args['gid'], $request->getParsedBody()));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->delete('/group/{gid}/expenses/{eid}', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    $response->write($group->deleteExpense($args['gid'], $args['eid']));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+
 
 $app->get('/examplegroups', function ($request, $response, $args) {
     $response->write('{"1":{"gid":1,"title":"Group 1","subtitle":"group 1 subtitle","picture":"","created_ts":1434605924,"updated_ts":1434615924,"balance":120.03,"member_create_events":1,"member_other_expense":1,"member_add_member":1,"currency":"EUR","sort":1,"email_notify":1,"nickname":"test nick 1","members":{"1":23.23,"2":1542.36,"3":-1000,"5":565.59},"categories":{"1":{"cid":1,"title":"drinks","sort":1,"presents":0,"inactive":0,"can_delete":0},"2":{"cid":2,"title":"food","sort":2,"presents":0,"inactive":0,"can_delete":0},"3":{"cid":3,"title":"presents","sort":3,"presents":1,"inactive":0,"can_delete":0},"4":{"cid":4,"title":"tickets","sort":4,"presents":0,"inactive":0,"can_delete":1}}},"2":{"gid":2,"title":"Group 2","subtitle":"group 2 subtitle","picture":"","created_ts":1434605924,"updated_ts":1434615924,"balance":0.07,"member_create_events":1,"member_other_expense":1,"member_add_member":1,"sort":2,"email_notify":1,"nickname":"test nick 2","currency":"USD","members":{"1":-857.65,"4":452.85,"6":623.88,"7":219.08},"categories":{"1":{"cid":1,"title":"drinks","sort":1,"presents":0,"inactive":0,"can_delete":0},"2":{"cid":2,"title":"food","sort":2,"presents":0,"inactive":0,"can_delete":0},"3":{"cid":3,"title":"presents","sort":3,"presents":1,"inactive":0,"can_delete":0},"4":{"cid":4,"title":"tickets","sort":4,"presents":0,"inactive":0,"can_delete":1}}},"3":{"gid":3,"title":"Group 3","subtitle":"group 3 subtitle","picture":"","created_ts":1434605924,"updated_ts":1434615924,"balance":-123.03,"member_create_events":1,"member_other_expense":1,"member_add_member":1,"currency":"GBP","sort":3,"email_notify":1,"nickname":"test nick 3","members":{"8":853.33,"1":11000.36,"3":-5000.76,"5":-6852},"categories":{"1":{"cid":1,"title":"drinks","sort":1,"presents":0,"inactive":0,"can_delete":0},"2":{"cid":2,"title":"food","sort":2,"presents":0,"inactive":0,"can_delete":0},"3":{"cid":3,"title":"presents","sort":3,"presents":1,"inactive":0,"can_delete":0},"4":{"cid":4,"title":"tickets","sort":4,"presents":0,"inactive":0,"can_delete":1}}},"4":{"gid":4,"title":"Group 4","subtitle":"group 4 subtitle","picture":"","created_ts":1434605924,"updated_ts":1434615924,"balance":555.48,"member_create_events":1,"member_other_expense":1,"member_add_member":1,"currency":"EUR","sort":4,"email_notify":1,"nickname":"test nick 4","members":{"1":853.33,"2":200.36,"3":-2100.76,"5":-1852,"6":782.36,"7":4503.76,"8":-2386},"categories":{"1":{"cid":1,"title":"drinks","sort":1,"presents":0,"inactive":0,"can_delete":0},"2":{"cid":2,"title":"food","sort":2,"presents":0,"inactive":0,"can_delete":0},"3":{"cid":3,"title":"presents","sort":3,"presents":1,"inactive":0,"can_delete":0},"4":{"cid":4,"title":"tickets","sort":4,"presents":0,"inactive":0,"can_delete":1}}}}');
@@ -92,3 +165,36 @@ $app->get('/articles', function ($request, $response, $args) {
  * and returns the HTTP response to the HTTP client.
  */
 $app->run();
+
+
+/*
+
+groups update json
+ {
+	"1": {
+
+		"gid": 1,
+		"currency": "EUR",
+		"name": "Delluf",
+		"description": "Mannenuitjes"
+	},
+	"8": {
+		"gid": 8,
+		"currency": "EUR",
+		"name": "Broers",
+		"description": "Broertjes"
+	}
+}
+
+group categories update json
+{
+	"1": {
+		"gid": 1,
+		"sort": 1,
+	},
+	"8": {
+		"gid": 8,
+		"sort": 2,
+	}
+}
+ */
