@@ -88,7 +88,7 @@ class Member
         return $json ? json_encode($groups, JSON_NUMERIC_CHECK) : $groups;
     }
 
-    function getMemberDetails($uid)
+    function getDetailsMembersInGroups($uid)
     {
         $groups = $this->getAllGroups($uid);
 
@@ -104,6 +104,28 @@ class Member
         $this->realname2firstLastNameHelper($users);
         $users = $this->rearrangeArrayKey('uid', $users);
         return json_encode($users, JSON_NUMERIC_CHECK);
+    }
+
+    function getMemberDetails($requestUid, $askedByUid)
+    {
+        $groups = $this->getAllGroups($askedByUid);
+
+        // get all the users that are members of these groups from the concatenated field
+        $user_id_list = $this->createUserIdList($groups, false);
+
+        if (!in_array($requestUid, $user_id_list)){
+            return 'Error: invalid request';
+        }
+
+        $sql = "SELECT user_id AS uid, username AS nickName, activated AS active, reg_date AS created,
+                email, realname, firstName, lastName, updated FROM users
+                WHERE user_id = :uid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':uid' => $requestUid));
+        $details = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $this->realname2firstLastNameHelper($details);
+        $details = array_pop($details);
+        return json_encode($details, JSON_NUMERIC_CHECK);
     }
 
     function updateGroupSort($groups, $uidToUpdate, $uidRequester){
@@ -158,12 +180,13 @@ class Member
     /*
      * Get all the users that are members of these groups from the concatenated field in the groups
      */
-    private function createUserIdList ($groups)
+    private function createUserIdList ($groups, $returnString = true)
     {
         $user_id_list = array();
         foreach ($groups as $group)
             $user_id_list = array_merge($user_id_list, explode(',', $group['user_id_list']));
-        $user_id_list = implode(',', array_unique($user_id_list));
+        if ($returnString)
+            $user_id_list = implode(',', array_unique($user_id_list));
         return $user_id_list;
     }
 

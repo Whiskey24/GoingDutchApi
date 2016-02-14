@@ -39,7 +39,14 @@ $app->put('/groups', function ($request, $response, $args) {
 
 $app->get('/users', function ($request, $response, $args) {
     $member = new \Models\Member();
-    $response->write($member->getMemberDetails(\Middleware\Authenticate::$requestUid));
+    $response->write($member->getDetailsMembersInGroups(\Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->get('/user/{uid}/details', function ($request, $response, $args) {
+    $member = new \Models\Member();
+    $response->write($member->getMemberDetails($args['uid'], \Middleware\Authenticate::$requestUid));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;
 })->add($auth);
