@@ -197,4 +197,15 @@ group categories update json
 		"sort": 2,
 	}
 }
+
+user update json
+ {
+		"uid": 1,
+		"firstName": "Jane",
+		"lastName": "Doe",
+		"nickName": "JD"
+		"realname": "Jennifer Diade,
+		"currency": "EUR",
+		"email": "jd@diade-email.com",
+}
  */
