@@ -128,6 +128,26 @@ class Member
         return json_encode($details, JSON_NUMERIC_CHECK);
     }
 
+    function updateMemberDetails($requestUid, $details, $askedByUid)
+    {
+        if ($requestUid != $askedByUid || $requestUid != $details->uid){
+            return 'Error: invalid request';
+        }
+
+        $sql = "UPDATE users SET username=:nickName, firstName=:firstName, lastName=:lastName, realname=:realname, email=:email WHERE user_id=:uid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(
+            ':nickName' => $details->nickName,
+            ':firstName' => $details->firstName,
+            ':lastName' => $details->lastName,
+            ':realname' => $details->realname,
+            ':email' => $details->email,
+            ':uid' => $requestUid
+        ));
+
+        return $this->getMemberDetails($requestUid, $askedByUid);
+    }
+
     function updateGroupSort($groups, $uidToUpdate, $uidRequester){
 
         if ($uidToUpdate != $uidRequester) {

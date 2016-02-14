@@ -10,6 +10,7 @@ class UsersTest extends \PHPUnit_Framework_TestCase
 
     protected $knownuser = array('name' => 'whiskey', 'pass' => 'testpassword');
     protected $unknownuser = array('name' => 'whiskea', 'pass' => 'testpassword');
+    protected $uidNotInOwnGroups = 999;
 
     protected function setUp()
     {
@@ -95,6 +96,11 @@ class UsersTest extends \PHPUnit_Framework_TestCase
  */
     public function testGetUserDetails()
     {
+        // check that details of a user not in own groups cannot be retrieved
+        $response = $this->client->get("/user/{$this->uidNotInOwnGroups}/details", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $this->assertEquals('Error: invalid request', $content, "Unexpected response for retrieving a user that is not in own groups");
+
         // first get uid of current user
         $response = $this->client->get('/version', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
         $result = $response->getBody()->getContents();
@@ -119,14 +125,18 @@ class UsersTest extends \PHPUnit_Framework_TestCase
         // first get uid of current user
         $response = $this->client->get('/version', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
         $result = $response->getBody()->getContents();
-        $existingDetails = json_decode($result, true);
-        $uid = $existingDetails['uid'];
+        $resultArray = json_decode($result, true);
+        $uid = $resultArray['uid'];
+
+        $response = $this->client->get("/user/{$uid}/details", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $existingDetails = json_decode($content, true);
 
         $newDetails = $existingDetails;
-        $newDetails['firstName'] .= "Test1";
-        $newDetails['lastName'] .= "Test2";
-        $newDetails['nickName'] .= "Test3";
-        $newDetails['realname'] .= "Test4";
+        $newDetails['firstName'] .= " Test1";
+        $newDetails['lastName']  .= " Test2";
+        $newDetails['nickName']  .= " Test3";
+        $newDetails['realname']  .= " Test4";
         $newDetails['email'] = "test-" . $newDetails['email'];
 
         $response = $this->client->request('PUT', "/user/{$uid}/details", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newDetails]);
@@ -138,6 +148,6 @@ class UsersTest extends \PHPUnit_Framework_TestCase
         }
 
         // restore old values
-        $response = $this->client->request('PUT', "/user/{$uid}/details", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $existingDetails]);
+        $response = $this->client->request('PUT', "/user/{$uid}/details", ['auth' => [$newDetails['nickName'], $this->knownuser['pass']], 'json' => $existingDetails]);
     }
 }
