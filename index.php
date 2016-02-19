@@ -39,7 +39,21 @@ $app->put('/groups', function ($request, $response, $args) {
 
 $app->get('/users', function ($request, $response, $args) {
     $member = new \Models\Member();
-    $response->write($member->getMemberDetails(\Middleware\Authenticate::$requestUid));
+    $response->write($member->getDetailsMembersInGroups(\Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->get('/user/{uid}/details', function ($request, $response, $args) {
+    $member = new \Models\Member();
+    $response->write($member->getMemberDetails($args['uid'], \Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->put('/user/{uid}/details', function ($request, $response, $args) {
+    $member = new \Models\Member();
+    $response->write($member->updateMemberDetails($args['uid'], $request->getParsedBody(), \Middleware\Authenticate::$requestUid));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;
 })->add($auth);
@@ -196,5 +210,16 @@ group categories update json
 		"gid": 8,
 		"sort": 2,
 	}
+}
+
+user update json
+ {
+		"uid": 1,
+		"firstName": "Jane",
+		"lastName": "Doe",
+		"nickName": "JD"
+		"realname": "Jennifer Diade,
+		"currency": "EUR",
+		"email": "jd@diade-email.com",
 }
  */
