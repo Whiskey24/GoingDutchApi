@@ -150,4 +150,52 @@ class UsersTest extends \PHPUnit_Framework_TestCase
         // restore old values
         $response = $this->client->request('PUT', "/user/{$uid}/details", ['auth' => [$newDetails['nickName'], $this->knownuser['pass']], 'json' => $existingDetails]);
     }
+
+    public function testAddDeleteNewUser()
+    {
+        $newDetails = array();
+        $newDetails['firstName'] = "Test1";
+        $newDetails['lastName']  = "Test2";
+        $newDetails['nickName']  = "Test3";
+        $newDetails['pass']  = "1234";
+        $newDetails['email'] = "test-email123";
+
+        $response = $this->client->request('POST', "/user", ['json' => $newDetails]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        $this->assertArrayHasKey('success', $resultArray, "AddNewUser: Key 'success' not found in response when adding new user");
+        $this->assertArrayHasKey('uid', $resultArray, "AddNewUser: Key 'uid' not found in response when adding new user");
+        $this->assertEquals(1, $resultArray['success'], "AddNewUser: Could not add new user");
+
+        // see if new user can be authorized
+        $response = $this->client->get('/version', ['auth' => [$newDetails['email'], $newDetails['pass']]]);
+        $result = $response->getBody()->getContents();
+        $resultArray = json_decode($result, true);
+        $expected = 'Going Dutch API';
+        $this->assertEquals(200, $response->getStatusCode(), "AddNewUser: Could not authenticate with email");
+        $this->assertEquals($expected, $resultArray['service']);
+        $this->assertGreaterThan(0, $resultArray['uid']);
+
+        $uid = $resultArray['uid'];
+        $delDetails = array();
+        $delDetails['email'] = $newDetails['email'];
+
+        // try to delete the user with wrong id
+        $delDetails['uid'] = $uid -1;
+        $response = $this->client->request('DELETE', "/user", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $delDetails]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey('success', $resultArray, "DeleteUser: Key 'success' not found in response when deleting user");
+        $this->assertEquals(0, $resultArray['success'], "DeleteUser: Could delete user with non valid uid / email combination");
+
+        // try to delete the user
+        $delDetails['uid'] = $uid;
+        $response = $this->client->request('DELETE', "/user", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $delDetails]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey('success', $resultArray, "DeleteUser: Key 'success' not found in response when deleting user");
+        $this->assertEquals(1, $resultArray['success'], "DeleteUser: Could not delete the new user");
+    }
+
 }

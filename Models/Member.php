@@ -178,6 +178,85 @@ class Member
         return json_encode($groups, JSON_NUMERIC_CHECK);
     }
 
+    function addNewMember($details){
+        global $app_config;
+        $response = array('success' => 0, 'uid' =>0);
+
+        if (empty($details) || empty($details->nickName) || empty($details->pass)) {
+            return json_encode($response , JSON_NUMERIC_CHECK);
+        }
+
+        // check for existing email
+        $sql = "SELECT COUNT(*) FROM users WHERE email = :email";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':email' => $details->email));
+        $result = $stmt->fetch(\PDO::FETCH_NUM);
+        $userCount = $result[0];
+        if ($userCount> 0) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        $salt = $app_config['secret']['hash'];
+        $hash = md5($salt . $details->pass . $salt);
+        $now = time();
+
+        $sql = "INSERT INTO users (username, password, email, realname, firstName, lastName, activated, confirmation, reg_date, last_login, updated)
+                VALUES (:username, :password, :email, :realname, :firstName, :lastName, :activated, :confirmation, :reg_date, :last_login, :updated)";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':username' => $details->nickName,
+                ':password' => $hash,
+                ':email' => $details->email,
+                ':realname' => $details->firstName . ' ' . $details->lastName ,
+                ':firstName' => $details->firstName,
+                ':lastName' => $details->lastName,
+                ':activated' => 1,
+                ':confirmation' => 0,
+                ':reg_date' => $now,
+                ':last_login' => 0,
+                ':updated' => $now
+            )
+        );
+        $uid = Db::getInstance()->lastInsertId();
+        $response  = array('success' => 1, 'uid' => $uid);
+        return json_encode($response, JSON_NUMERIC_CHECK);
+    }
+
+    function deleteMember($details){
+        $response = array('success' => 0);
+        if (empty($details) || empty($details->email) || empty($details->uid)) {
+            return json_encode($response , JSON_NUMERIC_CHECK);
+        }
+
+        // check if email and uid match
+        $sql = "SELECT COUNT(*) FROM users WHERE email = :email AND user_id = :uid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':email' => $details->email, ':uid' => $details->uid));
+        $result = $stmt->fetch(\PDO::FETCH_NUM);
+        $userCount = $result[0];
+        if ($userCount < 1) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        $sql = "DELETE FROM users WHERE user_id = :uid AND email = :email";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':email' => $details->email, ':uid' => $details->uid));
+
+        // check if deleted
+        $sql = "SELECT COUNT(*) FROM users WHERE email = :email AND user_id = :uid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':email' => $details->email, ':uid' => $details->uid));
+        $result = $stmt->fetch(\PDO::FETCH_NUM);
+        $userCount = $result[0];
+        if ($userCount > 0) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        $response = array('success' => 1);
+        return json_encode($response, JSON_NUMERIC_CHECK);
+    }
+
     /*
      * Get all the groups for this user in an associative array
      */

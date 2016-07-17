@@ -22,6 +22,8 @@ class Authenticate
 
     public function __invoke($request, $response, $next)
     {
+        global $app_config;
+
         $authorized = false;
         $name = '';
         $pass = '';
@@ -39,7 +41,7 @@ class Authenticate
 
         // validate the credentials
         if (!empty($name) && !empty($pass)) {
-            $salt = 's8w4Er97u';
+            $salt = $app_config['secret']['hash'];
             $hash = md5($salt . $pass . $salt);
 
             // validate credentials
