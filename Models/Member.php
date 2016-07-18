@@ -178,6 +178,25 @@ class Member
         return json_encode($groups, JSON_NUMERIC_CHECK);
     }
 
+    function emailExists($details){
+        $response = array('error' => 1);
+        if (empty($details) || empty($details->email)) {
+            return json_encode($response , JSON_NUMERIC_CHECK);
+        }
+
+        $sql = "SELECT COUNT(*) FROM users WHERE email = :email";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':email' => $details->email));
+        $result = $stmt->fetch(\PDO::FETCH_NUM);
+        $userCount = $result[0];
+        if ($userCount > 0) {
+            $response = array('error' => 0, 'exists' => 1);
+        } else {
+            $response = array('error' => 0, 'exists' => 0);
+        }
+        return json_encode($response, JSON_NUMERIC_CHECK);
+    }
+
     function addNewMember($details){
         global $app_config;
         $response = array('success' => 0, 'uid' =>0);

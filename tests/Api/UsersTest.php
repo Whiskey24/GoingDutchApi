@@ -8,7 +8,7 @@ class UsersTest extends \PHPUnit_Framework_TestCase
 {
     protected $client;
 
-    protected $knownuser = array('name' => 'whiskey', 'pass' => 'testpassword');
+    protected $knownuser = array('name' => 'whiskey', 'email' => 'exitspam-bert@yahoo.com', 'pass' => 'testpassword');
     protected $unknownuser = array('name' => 'whiskea', 'pass' => 'testpassword');
     protected $uidNotInOwnGroups = 999;
 
@@ -149,6 +149,23 @@ class UsersTest extends \PHPUnit_Framework_TestCase
 
         // restore old values
         $response = $this->client->request('PUT', "/user/{$uid}/details", ['auth' => [$newDetails['nickName'], $this->knownuser['pass']], 'json' => $existingDetails]);
+    }
+
+    public function testEmailExists() {
+        $details = array('email' =>  $this->knownuser['email']);
+        $response = $this->client->request('POST', "/emailexists", ['json' => $details]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey('exists', $resultArray, "EmailExists: Key 'exists' not found in response when checking for existing email address");
+        $this->assertEquals(1, $resultArray['exists'], "EmailExists: email not flagged as existing");
+
+        $details = array('email' => 'aa@bb.com');
+        $response = $this->client->request('POST', "/emailexists", ['json' => $details]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey('exists', $resultArray, "EmailExists: Key 'exists' not found in response when checking for existing email address");
+        $this->assertEquals(0, $resultArray['exists'], "EmailExists: email flagged as existing while it should not be");
+        $this->assertEquals(0, $resultArray['exists'], "EmailExists: email flagged as existing while it should not be");
     }
 
     public function testAddDeleteNewUser()
