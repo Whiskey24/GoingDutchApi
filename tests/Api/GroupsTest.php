@@ -280,4 +280,40 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $content = $response->getBody()->getContents();
     }
 
+    public function testAddDeleteNewGroup()
+    {
+        $newDetails = array();
+        $newDetails['currency'] = "EUR";
+        $newDetails['name'] = "NewGroupTest-" . time();
+        $newDetails['description'] = "NewGroupTest @ " . time();
+
+        $response = $this->client->request('POST', "/group", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $newDetails]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when adding new group");
+        $this->assertArrayHasKey('gid', $resultArray, "AddDeleteNewGroup: Key 'gid' not found in response when adding new group");
+        $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not add new group");
+        $this->assertGreaterThan(1, $resultArray['gid'], "AddDeleteNewGroup: new gid not greater than 1");
+        $gid = $resultArray['gid'];
+
+        // TODO: check group can be retrieved and has correct admin
+        // TODO: try to delete as non group admin
+
+        // Delete group
+        $delDetails = array('gid' => $gid);
+        $response = $this->client->request('DELETE', "/group", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $delDetails]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when deleting group");
+        $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could delete group " . $gid);
+
+        // try to delete the user
+//        $delDetails['uid'] = $uid;
+//        $response = $this->client->request('DELETE', "/user", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $delDetails]);
+//        $content = $response->getBody()->getContents();
+//        $resultArray = json_decode($content, true);
+//        $this->assertArrayHasKey('success', $resultArray, "DeleteUser: Key 'success' not found in response when deleting user");
+//        $this->assertEquals(1, $resultArray['success'], "DeleteUser: Could not delete the new user");
+    }
 }

@@ -17,6 +17,9 @@ require_once 'Db/Db.php';
 $app = new \Slim\App();
 $auth = new \Middleware\Authenticate();
 
+global $app_config;
+$app_config = parse_ini_file('config.ini', true);
+
 $app->get('/version', function ($request, $response, $args) {
     $id = array('service' => 'Going Dutch API', 'version' =>'0.1', 'uid' => \Middleware\Authenticate::$requestUid);
     $response->write(json_encode($id));
@@ -65,9 +68,44 @@ $app->put('/user/{uid}/groups', function ($request, $response, $args) {
     return $newResponse;
 })->add($auth);
 
+$app->post('/user', function ($request, $response, $args) {
+    $member = new \Models\Member();
+    $response->write($member->addNewMember($request->getParsedBody()));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+});
+
+$app->post('/emailexists', function ($request, $response, $args) {
+    $member = new \Models\Member();
+    $response->write($member->emailExists($request->getParsedBody()));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+});
+
+$app->delete('/user', function ($request, $response, $args) {
+    $member = new \Models\Member();
+    $response->write($member->deleteMember($request->getParsedBody()));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->post('/group', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    $response->write($group->addNewGroup($request->getParsedBody(), \Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->delete('/group', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    $response->write($group->deleteGroup($request->getParsedBody()));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
 $app->put('/group/{gid}/categories', function ($request, $response, $args) {
-    $member = new \Models\Group();
-    $response->write($member->updateGroupCategories($request->getParsedBody(), $args['gid'], \Middleware\Authenticate::$requestUid));
+    $group = new \Models\Group();
+    $response->write($group->updateGroupCategories($request->getParsedBody(), $args['gid'], \Middleware\Authenticate::$requestUid));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;
 })->add($auth);

@@ -378,6 +378,73 @@ class Group
     }
 
 
+    function addNewGroup($details, $uid){
+        $response = array('success' => 0, 'gid' =>0);
+
+        if (empty($details) || empty($details->currency) || empty($details->name)) {
+            return json_encode($response , JSON_NUMERIC_CHECK);
+        }
+
+        $sql = "INSERT INTO groups (currency, name, description)
+                VALUES (:currency, :name, :description)";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':currency' => $details->currency,
+                ':name' => $details->name,
+                ':description' => $details->description
+            )
+        );
+        $gid = Db::getInstance()->lastInsertId();
+
+        $sql = "INSERT INTO users_groups (user_id, group_id, role_id, join_date)
+                VALUES (:user_id, :group_id, :role_id, FROM_UNIXTIME(:submitted))";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':user_id' => $uid,
+                ':group_id' => $gid,
+                ':role_id' => 0,
+                ':submitted' => time()
+            )
+        );
+
+        $response  = array('success' => 1, 'gid' => $gid);
+        return json_encode($response, JSON_NUMERIC_CHECK);
+    }
+
+
+    function deleteGroup($details){
+        $response = array('success' => 0);
+        if (empty($details) || empty($details->gid)) {
+            return json_encode($response , JSON_NUMERIC_CHECK);
+        }
+
+        // TODO: Check an admin deletes group
+
+        $sql = "DELETE FROM groups WHERE group_id = :gid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $details->gid));
+
+        $sql = "DELETE FROM users_groups WHERE group_id = :gid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $details->gid));
+
+
+        // check if deleted
+        $sql = "SELECT COUNT(*) FROM groups WHERE group_id = :gid ";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $details->gid));
+        $result = $stmt->fetch(\PDO::FETCH_NUM);
+        $userCount = $result[0];
+        if ($userCount > 0) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        $response = array('success' => 1);
+        return json_encode($response, JSON_NUMERIC_CHECK);
+    }
+
     private function validateUids($uids, $gid)
     {
         if (!is_array($uids))
