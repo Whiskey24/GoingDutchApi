@@ -255,6 +255,36 @@ class Group
         return json_encode($return, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     }
 
+    function addGroupMembers($emails, $gid, $uid)
+    {
+        $response = array('success' => 0, 'added' => 0, 'invited' =>0);
+        if (empty($emails)) {
+            return json_encode($response , JSON_NUMERIC_CHECK);
+        }
+
+        // check if added by admin
+        if (!$this->validateIsAdminOfGroup($uid, $gid)) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        $emailList = implode(',', $emails);
+        $sql = "SELECT user_id, email FROM users WHERE FIND_IN_SET (email, :emails)";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':email' => $emailList
+            )
+        );
+
+        // foreach in list add
+        // foreach not in list, put in invited table (to be created) and send email
+        // report back number added and emails not added
+
+
+        $response = array('success' => 0, 'added' => 0, 'invited' =>0);
+        return json_encode($response , JSON_NUMERIC_CHECK);
+    }
+
     function updateGroupCategories($categories, $gid, $uid)
     {
         $uids = array($uid);
@@ -414,13 +444,16 @@ class Group
     }
 
 
-    function deleteGroup($details){
+    function deleteGroup($details, $uid){
         $response = array('success' => 0);
         if (empty($details) || empty($details->gid)) {
             return json_encode($response , JSON_NUMERIC_CHECK);
         }
 
-        // TODO: Check an admin deletes group
+        // check if deleted by admin
+        if (!$this->validateIsAdminOfGroup($uid, $details->gid)) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
 
         $sql = "DELETE FROM groups WHERE group_id = :gid";
         $stmt = Db::getInstance()->prepare($sql);
@@ -464,6 +497,20 @@ class Group
                 return false;
         }
         return true;
+    }
+
+    private function validateIsAdminOfGroup($uid, $gid)
+    {
+        $sql = "SELECT COUNT(*) FROM users_groups WHERE user_id = :uid AND group_id = :gid 
+                AND (ROLE_ID=0 OR ROLE_ID=1)";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(
+            ':gid' => $gid,
+            ':uid' => $uid
+        ));
+        $result = $stmt->fetch(\PDO::FETCH_NUM);
+        $userCount = $result[0];
+        return $userCount == 0 ? false : true;
     }
 
     private function addExpenseEmail($expense, $eid, $type = 'add', $removedUids = array())

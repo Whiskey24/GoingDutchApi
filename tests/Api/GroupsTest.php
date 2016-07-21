@@ -13,6 +13,7 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
     protected $client;
 
     protected $knownuser = array('name' => 'whiskey', 'pass' => 'testpassword');
+    protected $knownuser2 = array('name' => 'monc', 'email' => 'exitspam-daan@yahoo.com', 'user_id' => 2, 'pass' => 'testpassword');
     protected $unknownuser = array('name' => 'whiskea', 'pass' => 'testpassword');
     protected $gid = 1;
     protected $eid = 1;
@@ -297,8 +298,46 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $this->assertGreaterThan(1, $resultArray['gid'], "AddDeleteNewGroup: new gid not greater than 1");
         $gid = $resultArray['gid'];
 
-        // TODO: check group can be retrieved and has correct admin
-        // TODO: try to delete as non group admin
+        // check if group was correctly added
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey($gid, $resultArray, "AddDeleteNewGroup: Key for new group id not found in groups array response when checking groups");
+        $this->assertEquals($newDetails['currency'], $resultArray[$gid]['currency'], "AddDeleteNewGroup: currency not correct for new group");
+        $this->assertEquals($newDetails['name'], $resultArray[$gid]['name'], "AddDeleteNewGroup: name not correct for new group");
+        $this->assertEquals($newDetails['description'], $resultArray[$gid]['description'], "AddDeleteNewGroup: description not correct for new group");
+
+        // Add an existing user to the group by email
+///*        $userDetails = array();
+//        $userDetails[] = $this->knownuser2['email'];
+//        $response = $this->client->request('POST', "/group/{$gid}/members", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $userDetails]);
+//        $content = $response->getBody()->getContents();
+//        $resultArray = json_decode($content, true);
+//        $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when adding user to new group");
+//        $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not add user to new group " . $gid);
+//
+//        // Check user has access to the group
+//        $response = $this->client->get('/groups', ['auth' => [$this->knownuser2['name'], $this->knownuser['pass']]]);
+//        $content = $response->getBody()->getContents();
+//        $resultArray = json_decode($content, true);
+//        $this->assertArrayHasKey($gid, $resultArray, "AddDeleteNewGroup: Key for new group id not found in groups array response of added user when checking groups");
+//
+//        // remove user from the group
+//        $userDetails = array();
+//        $userDetails[] = $this->knownuser2['user_id'];
+//        $response = $this->client->request('DELETE', "/group/{$gid}/members", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $userDetails]);
+//        $content = $response->getBody()->getContents();
+//        $resultArray = json_decode($content, true);
+//        $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when removing user from new group");
+//        $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not remove user from new group " . $gid);*/
+
+        // Try to delete group as wrong user
+        $delDetails = array('gid' => $gid);
+        $response = $this->client->request('DELETE', "/group", ['auth' => [$this->knownuser2['name'], $this->knownuser['pass']], 'json' => $delDetails]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when deleting group");
+        $this->assertEquals(0, $resultArray['success'], "AddDeleteNewGroup: Could delete group " . $gid . " as non-admin");
 
         // Delete group
         $delDetails = array('gid' => $gid);
@@ -306,14 +345,6 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
         $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when deleting group");
-        $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could delete group " . $gid);
-
-        // try to delete the user
-//        $delDetails['uid'] = $uid;
-//        $response = $this->client->request('DELETE', "/user", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $delDetails]);
-//        $content = $response->getBody()->getContents();
-//        $resultArray = json_decode($content, true);
-//        $this->assertArrayHasKey('success', $resultArray, "DeleteUser: Key 'success' not found in response when deleting user");
-//        $this->assertEquals(1, $resultArray['success'], "DeleteUser: Could not delete the new user");
+        $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not delete group " . $gid);
     }
 }

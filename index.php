@@ -98,7 +98,14 @@ $app->post('/group', function ($request, $response, $args) {
 
 $app->delete('/group', function ($request, $response, $args) {
     $group = new \Models\Group();
-    $response->write($group->deleteGroup($request->getParsedBody()));
+    $response->write($group->deleteGroup($request->getParsedBody(),\Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->post('/group/{gid}/members', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    $response->write($group->addGroupMembers($request->getParsedBody(), $args['gid'], \Middleware\Authenticate::$requestUid));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;
 })->add($auth);
