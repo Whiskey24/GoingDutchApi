@@ -105,7 +105,16 @@ $app->delete('/group', function ($request, $response, $args) {
 
 $app->post('/group/{gid}/members', function ($request, $response, $args) {
     $group = new \Models\Group();
+    //error_log( $request->getParsedBody());
     $response->write($group->addGroupMembers($request->getParsedBody(), $args['gid'], \Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
+$app->delete('/group/{gid}/members', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    //error_log( $request->getParsedBody());
+    $response->write($group->deleteGroupMembers($request->getParsedBody(), $args['gid'], \Middleware\Authenticate::$requestUid));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;
 })->add($auth);

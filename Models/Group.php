@@ -243,23 +243,22 @@ class Group
 
         // return  group details for updated groups
         $gIdStr = implode(',', $gIds);
-        $sql = "SELECT group_id as gid, name, description, currency FROM groups WHERE FIND_IN_SET(group_id, :gIdStr)";
+        $sql = "SELECT group_id AS gid, name, description, currency FROM groups WHERE FIND_IN_SET(group_id, :gIdStr)";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':gIdStr' => $gIdStr));
         $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $return = array();
-        foreach ($result as $group)
-        {
+        foreach ($result as $group) {
             $return[$group['gid']] = $group;
         }
         return json_encode($return, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     }
 
-    function addGroupMembers($emails, $gid, $uid)
+    function addGroupMembers($body, $gid, $uid)
     {
-        $response = array('success' => 0, 'added' => 0, 'invited' =>0);
-        if (empty($emails)) {
-            return json_encode($response , JSON_NUMERIC_CHECK);
+        $response = array('success' => 0, 'added' => 0, 'invited' => 0);
+        if (empty($body)) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
         // check if added by admin
@@ -267,23 +266,93 @@ class Group
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
-        $emailList = implode(',', $emails);
-        $sql = "SELECT user_id, email FROM users WHERE FIND_IN_SET (email, :emails)";
+        // get list of user_ids for emails
+        $emailList = implode(',', $body->emails);
+        $sql = "SELECT user_id, email FROM users WHERE FIND_IN_SET (email, :email)";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(
             array(
                 ':email' => $emailList
             )
         );
-
-        // foreach in list add
-        // foreach not in list, put in invited table (to be created) and send email
-        // report back number added and emails not added
+        $emailUsers = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
 
-        $response = array('success' => 0, 'added' => 0, 'invited' =>0);
-        return json_encode($response , JSON_NUMERIC_CHECK);
+        // get current group members to avoid adding twice
+        $memberList = $this->getGroupUserIds($gid);
+
+        $added = 0;
+        // this could be optimized into a single query for speed
+        $sql = "INSERT INTO users_groups (user_id, group_id, role_id, join_date)
+                VALUES (:user_id, :group_id, :role_id, FROM_UNIXTIME(:submitted))";
+        $stmt = Db::getInstance()->prepare($sql);
+        foreach ($emailUsers as $invitee) {
+            // skip users that are already a group member
+            if (in_array($invitee['user_id'], $memberList))
+                continue;
+
+            $stmt->execute(
+                array(
+                    ':user_id' => $invitee['user_id'],
+                    ':group_id' => $gid,
+                    ':role_id' => 4,
+                    ':submitted' => time()
+                )
+            );
+            $added++;
+        }
+
+        // TODO: foreach not in list, put in invited table (to be created) and send email
+
+        $response = array('success' => 1, 'added' => $added, 'invited' => 0);
+        return json_encode($response, JSON_NUMERIC_CHECK);
     }
+
+    function deleteGroupMembers($body, $gid, $uid)
+    {
+        $response = array('success' => 0, 'deleted' => 0, 'removed' => 0);
+        if (empty($body)) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        // check if deleted by admin
+        if (!$this->validateIsAdminOfGroup($uid, $gid)) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        // get list of user_ids for emails
+        $uidList = implode(',', $body->user_ids);
+        $sql = "SELECT user_id, COUNT(*) AS ecount FROM expenses WHERE group_id = :gid AND FIND_IN_SET (user_id, :user_ids) GROUP BY user_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':gid' => $gid,
+                ':user_ids' => $uidList
+            )
+        );
+        $expenseCount = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $deleted = 0;
+        $removed = 0;
+        foreach ($expenseCount as $user) {
+            if ($user['ecount'] == 0) {
+                // no expenses made, can completely remove user from group
+                $sql = "DELETE FROM users_groups WHERE group_id = :gid AND user_id = :user_id";
+                $stmt = Db::getInstance()->prepare($sql);
+                $stmt->execute(array(':gid' => $gid, ':user_id' => $user['user_id']));
+                $deleted++;
+            } else {
+                // expenses made by user, only set removed flag
+                $sql = "UPDATE user_groups SET removed=1 WHERE group_id=:gid AND user_id = :user_id";
+                $stmt = Db::getInstance()->prepare($sql);
+                $stmt->execute(array(':gid' => $gid, ':user_id' => $user['user_id']));
+                $removed++;
+            }
+        }
+        $response = array('success' => 1, 'deleted' => $deleted, 'removed' => $removed);
+        return json_encode($response, JSON_NUMERIC_CHECK);
+    }
+
 
     function updateGroupCategories($categories, $gid, $uid)
     {
@@ -454,6 +523,8 @@ class Group
         if (!$this->validateIsAdminOfGroup($uid, $details->gid)) {
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
+
+        // TODO: check if expenses, if not completely remove, else move to groups_del table
 
         $sql = "DELETE FROM groups WHERE group_id = :gid";
         $stmt = Db::getInstance()->prepare($sql);
@@ -685,6 +756,19 @@ class Group
             $uidDetails[$val['user_id']] = $val;
         }
         return $uidDetails;
+    }
+
+    private function getGroupUserIds($gid)
+    {
+        $sql = "SELECT user_id FROM users_groups WHERE group_id = :group_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':group_id' => $gid
+            )
+        );
+        $result = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+        return $result;
     }
 
 //    private function queueEmail($gid, $eid, $subject, $message, $to, $from){
