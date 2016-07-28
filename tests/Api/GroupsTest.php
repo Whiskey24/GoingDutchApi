@@ -12,8 +12,10 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
 {
     protected $client;
 
-    protected $knownuser = array('name' => 'whiskey', 'pass' => 'testpassword');
-    protected $knownuser2 = array('name' => 'monc', 'email' => 'exitspam-daan@yahoo.com', 'user_id' => 2, 'pass' => 'testpassword');
+    protected $knownuser  = array('user_id' => 1, 'name' => 'whiskey', 'pass' => 'testpassword');
+    protected $knownuser2 = array('user_id' => 2, 'name' => 'monc', 'email' => 'exitspam-daan@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser3 = array('user_id' => 3, 'name' => 'jeepee', 'email' => 'exitspam-jp@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser4 = array('user_id' => 4, 'name' => 'martijn', 'email' => 'exitspam-martijn@yahoo.com', 'pass' => 'testpassword');
     protected $unknownuser = array('name' => 'whiskea', 'pass' => 'testpassword');
     protected $gid = 1;
     protected $eid = 1;
@@ -292,6 +294,7 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
 
+        $this->assertInternalType('array',$resultArray, "AddDeleteNewGroup: Response is not of type array");
         $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when adding new group");
         $this->assertArrayHasKey('gid', $resultArray, "AddDeleteNewGroup: Key 'gid' not found in response when adding new group");
         $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not add new group");
@@ -307,7 +310,7 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals($newDetails['name'], $resultArray[$gid]['name'], "AddDeleteNewGroup: name not correct for new group");
         $this->assertEquals($newDetails['description'], $resultArray[$gid]['description'], "AddDeleteNewGroup: description not correct for new group");
 
-        // Add an existing user to the group by email
+        // Add a single existing user to the group by email
         $userDetails = array('emails');
         $userDetails['emails'][] = $this->knownuser2['email'];
         $response = $this->client->request('POST', "/group/{$gid}/members", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $userDetails]);
@@ -316,11 +319,79 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when adding user to new group");
         $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not add user to new group " . $gid);
 
-        // Check user has access to the group
-        $response = $this->client->get('/groups', ['auth' => [$this->knownuser2['name'], $this->knownuser['pass']]]);
+        // Add multiple existing users to the group by email
+        $userDetails = array('emails');
+        $userDetails['emails'][] = $this->knownuser3['email'];
+        $userDetails['emails'][] = $this->knownuser4['email'];
+        $response = $this->client->request('POST', "/group/{$gid}/members", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $userDetails]);
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
-        $this->assertArrayHasKey($gid, $resultArray, "AddDeleteNewGroup: Key for new group id not found in groups array response of added user when checking groups");
+        $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when adding user to new group");
+        $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not add user to new group " . $gid);
+
+        // Check users have access to the group
+        $addedUsers = array($this->knownuser2, $this->knownuser3, $this->knownuser4);
+        foreach($addedUsers as $cUser) {
+            $response = $this->client->get('/groups', ['auth' => [$cUser['name'], $cUser['pass']]]);
+            $content = $response->getBody()->getContents();
+            $resultArray = json_decode($content, true);
+            $this->assertArrayHasKey($gid, $resultArray, "AddDeleteNewGroup: Key for new group id not found in groups array response of added user when checking groups");
+        }
+
+        // add expense in group
+        $expense = array(
+            'gid' => $gid,
+            'cid' => 1,
+            'uid' => $this->knownuser['user_id'],
+            'uids' => $this->knownuser['user_id'] . ',' . $this->knownuser2['user_id']. ',' . $this->knownuser3['user_id'],
+            'group_id' => $gid,
+            'etitle' => 'New group test expense 1',
+            'amount' => 12.33,
+            'ecreated' => time(),
+            'eupdated' => 0,
+            'event_id' => 0,
+            'timezoneoffset' => 120,
+            'currency' => 1
+        );
+
+        $response = $this->client->request('POST', "/group/{$gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $expense]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        // Check balance user2 and user3 is -4.11 and user1 = 8.22
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey($gid, $resultArray, "AddDeleteNewGroup: Key for group " . $gid . " not found in groups call");
+        $this->assertEquals(8.22, $resultArray[$gid]['members'][$this->knownuser['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser['user_id'] ." in new group " . $gid);
+        $this->assertEquals(-4.11, $resultArray[$gid]['members'][$this->knownuser2['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser2['user_id'] ." in new group " . $gid);
+        $this->assertEquals(-4.11, $resultArray[$gid]['members'][$this->knownuser3['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser3['user_id'] ." in new group " . $gid);
+
+        $expense = array(
+            'gid' => $gid,
+            'cid' => 1,
+            'uid' => $this->knownuser2['user_id'],
+            'uids' => $this->knownuser['user_id'] . ',' . $this->knownuser3['user_id']. ',' . $this->knownuser4['user_id'],
+            'group_id' => $gid,
+            'etitle' => 'New group test expense 2',
+            'amount' => 15.66,
+            'ecreated' => time(),
+            'eupdated' => 0,
+            'event_id' => 0,
+            'timezoneoffset' => 120,
+            'currency' => 1
+        );
+        $response = $this->client->request('POST', "/group/{$gid}/expenses", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $expense]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertEquals(11.55, $resultArray[$gid]['members'][$this->knownuser2['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser2['user_id'] ." in new group " . $gid);
+        $this->assertEquals(3.00,  $resultArray[$gid]['members'][$this->knownuser['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser['user_id'] ." in new group " . $gid);
+        $this->assertEquals(-9.33, $resultArray[$gid]['members'][$this->knownuser3['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser3['user_id'] ." in new group " . $gid);
+        $this->assertEquals(-5.22, $resultArray[$gid]['members'][$this->knownuser4['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser4['user_id'] ." in new group " . $gid);
 
         // remove user from the group
         $userDetails = array('user_ids');

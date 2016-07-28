@@ -89,8 +89,8 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
         $resultArray = json_decode($content, true);
 
         $memberList = explode(',', $resultArray['uids']);
-
-        $newOwner = array_shift(array_slice($memberList, 1, 1, true));
+        $memberListSlice = array_slice($memberList, 1, 1, true);
+        $newOwner = array_shift($memberListSlice);
         $removeMember = array_pop($memberList);
         $memberListStr = implode(',', $memberList);
 
@@ -245,18 +245,23 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
             case 'two':
                 // get second member to settle with
                 $memberList = explode(',', $group['user_id_list']);
-                $expenseOwner = array_shift(array_values($memberList));
-                $memberList =  array($expenseOwner, array_shift(array_slice($memberList, 1, 1, true)));
+                $memberListVal = array_values($memberList);
+                $expenseOwner = array_shift($memberListVal);
+                $memberListSlice = array_slice($memberList, 1, 1, true);
+                $memberList =  array($expenseOwner, array_shift($memberListSlice));
                 break;
             case 'settle':
                 // get second member to settle with
                 $memberList = explode(',', $group['user_id_list']);
-                $expenseOwner = array_shift(array_values($memberList));
-                $memberList =  array(array_shift(array_slice($memberList, 1, 1, true)));
+                $memberListVal = array_values($memberList);
+                $expenseOwner = array_shift($memberListVal);
+                $memberListSlice = array_slice($memberList, 1, 1, true);
+                $memberList =  array($expenseOwner, array_shift($memberListSlice));
                 break;
             case 'all':
                 $memberList = explode(',', $group['user_id_list']);
-                $expenseOwner = array_shift(array_values($memberList));
+                $memberListVal = array_values($memberList);
+                $expenseOwner = array_shift($memberListVal);
                 break;
         }
 

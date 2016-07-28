@@ -17,9 +17,6 @@ CREATE TABLE `email` (
   ENGINE=InnoDB
 ;
 
-
-
-
 # Replace deleted expenses table
 
 DROP TABLE `expenses_del`;
@@ -42,11 +39,19 @@ CREATE TABLE `goingdutch`.`expenses_del` (
   PRIMARY KEY (`expense_id`),
   FULLTEXT INDEX `description` (`description`)
 )
-  COLLATE 'latin1_swedish_ci' ENGINE=MyISAM ROW_FORMAT=Dynamic;
+  COLLATE 'utf8_general_ci' ENGINE=InnoDB;
 
 
-# Add currency to groups
+# Add currency to groups and groups_del
 ALTER TABLE `groups` ADD COLUMN `currency` VARCHAR(6) NOT NULL DEFAULT 'EUR' AFTER `reg_date`;
+ALTER TABLE `groups_del` ADD COLUMN `currency` VARCHAR(6) NOT NULL DEFAULT 'EUR' AFTER `description`;
+
+# Add removed to groups_del
+ALTER TABLE `users_groups_del` ADD COLUMN `removed` TINYINT NOT NULL DEFAULT '0' AFTER `role_id`;
+
+# Set delete date to current timestamp in groups_del
+ALTER TABLE `users_groups_del`
+  CHANGE COLUMN `del_date` `del_date` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER `join_date`;
 
 # Add sort to user groups
 ALTER TABLE `users_groups` ADD COLUMN `sort` INT(3) NOT NULL AFTER `group_id`;
@@ -61,19 +66,17 @@ ADD COLUMN `lastName` VARCHAR(100) NOT NULL AFTER `firstName`;
 
 # Add categories table
 CREATE TABLE `categories` (
-  `cid` INT NOT NULL,
-  `group_id` INT NOT NULL,
+  `cid` INT(11) NOT NULL,
+  `group_id` INT(11) NOT NULL,
   `title` VARCHAR(50) NOT NULL,
-  `presents` INT NOT NULL DEFAULT '0',
-  `inactive` TINYINT NOT NULL DEFAULT '0',
-  `can_delete` TINYINT NOT NULL DEFAULT '0',
-  `sort` INT NOT NULL DEFAULT '1'
+  `presents` INT(11) NOT NULL DEFAULT '0',
+  `inactive` TINYINT(4) NOT NULL DEFAULT '0',
+  `can_delete` TINYINT(4) NOT NULL DEFAULT '0',
+  `sort` INT(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`cid`, `group_id`)
 )
   COLLATE='utf8_general_ci'
-  ENGINE=InnoDB
-;
-ALTER TABLE `categories` ADD PRIMARY KEY (`cid`, `group_id`);
-
+  ENGINE=InnoDB;
 
 # Add timezoneoffset to expenses table
 ALTER TABLE `expenses` ADD COLUMN `timezoneoffset` SMALLINT NOT NULL DEFAULT '0' AFTER `currency`;

@@ -49,14 +49,19 @@ function SendEmail(){
             )
         );
 
-        if (!$mailer->Send()) {
-            $smtpmailer_error = 'Mail error: ' . $mailer->ErrorInfo;
-            error_log('Mail error: ' . $mailer->ErrorInfo);
-            // return false;
-        } else {
-            $smtpmailer_error = 'Message sent!';
-            error_log('Mail for expense ' . $email['eid'] .  ' sent to ' . $email['toaddress']);
-            //return true;
+        if ($config['email']['sendmail'] == 1) {
+            if (!$mailer->Send()) {
+                $smtpmailer_error = 'Mail error: ' . $mailer->ErrorInfo;
+                error_log('Mail error: ' . $mailer->ErrorInfo);
+                // return false;
+            } else {
+                $smtpmailer_error = 'Message sent!';
+                error_log('Mail for expense ' . $email['eid'] .  ' sent to ' . $email['toaddress']);
+                //return true;
+            }
+        }
+        else {
+            error_log('Mail for expense ' . $email['eid'] .  ' would have been sent to ' . $email['toaddress']);
         }
     }
 }

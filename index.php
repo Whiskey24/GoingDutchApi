@@ -119,6 +119,7 @@ $app->delete('/group/{gid}/members', function ($request, $response, $args) {
     return $newResponse;
 })->add($auth);
 
+// Edit, add & delete group categories
 $app->put('/group/{gid}/categories', function ($request, $response, $args) {
     $group = new \Models\Group();
     $response->write($group->updateGroupCategories($request->getParsedBody(), $args['gid'], \Middleware\Authenticate::$requestUid));

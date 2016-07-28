@@ -222,6 +222,22 @@ class Member
         $sql = "INSERT INTO users (username, password, email, realname, firstName, lastName, activated, confirmation, reg_date, last_login, updated)
                 VALUES (:username, :password, :email, :realname, :firstName, :lastName, :activated, :confirmation, :reg_date, :last_login, :updated)";
         $stmt = Db::getInstance()->prepare($sql);
+
+        $debug = $this->pdo_sql_debug($sql, array(
+            ':username' => $details->nickName,
+            ':password' => $hash,
+            ':email' => $details->email,
+            ':realname' => $details->firstName . ' ' . $details->lastName ,
+            ':firstName' => $details->firstName,
+            ':lastName' => $details->lastName,
+            ':activated' => 1,
+            ':confirmation' => 0,
+            ':reg_date' => $now,
+            ':last_login' => 0,
+            ':updated' => $now
+        ) );
+        error_log($debug);
+
         $stmt->execute(
             array(
                 ':username' => $details->nickName,
@@ -348,5 +364,13 @@ class Member
                 }
             }
         }
+    }
+
+    private function pdo_sql_debug($sql, $placeholders)
+    {
+        foreach ($placeholders as $k => $v) {
+            $sql = preg_replace('/' . $k . '/', "'" . $v . "'", $sql);
+        }
+        return $sql;
     }
 }

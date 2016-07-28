@@ -320,9 +320,12 @@ class Group
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
-        // get list of user_ids for emails
+
         $uidList = implode(',', $body->user_ids);
-        $sql = "SELECT user_id, COUNT(*) AS ecount FROM expenses WHERE group_id = :gid AND FIND_IN_SET (user_id, :user_ids) GROUP BY user_id";
+
+        // check for paid expenses by users
+        $sql = "SELECT user_id, COUNT(*) AS ecount FROM expenses WHERE group_id = :gid 
+                AND FIND_IN_SET (user_id, :user_ids) GROUP BY user_id";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(
             array(
@@ -330,12 +333,39 @@ class Group
                 ':user_ids' => $uidList
             )
         );
-        $expenseCount = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $expensePaidCount = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // check for participated expenses by users
+        $sql = "SELECT users_expenses.user_id, COUNT(users_expenses.expense_id) as ecount, group_id 
+                FROM users_expenses, expenses WHERE users_expenses.expense_id = expenses.expense_id 
+                AND group_id = :gid AND FIND_IN_SET (users_expenses.user_id, :user_ids) GROUP BY user_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':gid' => $gid,
+                ':user_ids' => $uidList
+            )
+        );
+        $expensePartCount = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // array with counts per user
+        $expensesCount = array();
+        foreach ($expensePaidCount as $user) {
+            if(!array_key_exists($user['user_id'], $expensesCount))
+                $expensesCount[$user['user_id']] = array('paid' => 0, 'participated' => 0);
+            $expensesCount[$user['user_id']]['paid'] += $user['ecount'];
+        }
+        foreach ($expensePartCount as $user) {
+            if(!array_key_exists($user['user_id'], $expensesCount))
+                $expensesCount[$user['user_id']] = array('paid' => 0, 'participated' => 0);
+            $expensesCount[$user['user_id']]['participated'] += $user['ecount'];
+        }
+        //error_log(print_r($expensesCount,1));
 
         $deleted = 0;
         $removed = 0;
-        foreach ($expenseCount as $user) {
-            if ($user['ecount'] == 0) {
+        foreach ($expensesCount as $uid => $user) {
+            if ($user['paid'] == 0 && $user['participated'] == 0) {
                 // no expenses made, can completely remove user from group
                 $sql = "DELETE FROM users_groups WHERE group_id = :gid AND user_id = :user_id";
                 $stmt = Db::getInstance()->prepare($sql);
@@ -343,9 +373,10 @@ class Group
                 $deleted++;
             } else {
                 // expenses made by user, only set removed flag
-                $sql = "UPDATE user_groups SET removed=1 WHERE group_id=:gid AND user_id = :user_id";
+                $sql = "UPDATE users_groups SET removed=1 WHERE group_id=:gid AND user_id = :user_id";
+                error_log($this->pdo_sql_debug($sql, array(':gid' => $gid, ':user_id' => $uid)));
                 $stmt = Db::getInstance()->prepare($sql);
-                $stmt->execute(array(':gid' => $gid, ':user_id' => $user['user_id']));
+                $stmt->execute(array(':gid' => $gid, ':user_id' => $uid));
                 $removed++;
             }
         }
@@ -476,7 +507,6 @@ class Group
         return json_encode($return, JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     }
 
-
     function addNewGroup($details, $uid){
         $response = array('success' => 0, 'gid' =>0);
 
@@ -508,10 +538,25 @@ class Group
             )
         );
 
+        // Add first (default) group category
+        $sql = "INSERT INTO categories  (cid, group_id, title, presents, inactive, can_delete, sort)
+                VALUES (:cid, :group_id, :title, :presents, :inactive, :can_delete, :sort)";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':cid' => 1,
+                ':group_id' => $gid,
+                ':title' => 'Whatever',
+                ':presents' => 0,
+                ':inactive' => 0,
+                ':can_delete' => 1,
+                ':sort' => 1
+            )
+        );
+
         $response  = array('success' => 1, 'gid' => $gid);
         return json_encode($response, JSON_NUMERIC_CHECK);
     }
-
 
     function deleteGroup($details, $uid){
         $response = array('success' => 0);
@@ -524,7 +569,77 @@ class Group
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
-        // TODO: check if expenses, if not completely remove, else move to groups_del table
+        $sql = "SELECT COUNT(*) FROM expenses WHERE group_id = :gid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $details->gid));
+        $result = $stmt->fetch(\PDO::FETCH_NUM);
+        $expenseCount = $result[0];
+
+        if ($expenseCount > 0) {
+            // found expenses, copy to groups_del table
+            $sql = "SELECT * FROM groups WHERE group_id = :gid";
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(array(':gid' => $details->gid));
+            $group = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            $sql = "INSERT INTO groups_del (group_id, name, description, reg_date, del_date, currency)
+                VALUES (:group_id, :name, :description, :reg_date, FROM_UNIXTIME(:del_date), :currency)";
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(
+                array(
+                    ':group_id' => $details->gid,
+                    ':name' => $group['name'],
+                    ':description' => $group['description'],
+                    ':reg_date' => $group['reg_date'],
+                    ':del_date' => time(),
+                    ':currency' => $group['currency'],
+                )
+            );
+
+            // copy users_groups rows to users_groups_del table
+            $keys = array ('user_id', 'group_id', 'role_id', 'removed', 'join_date');
+            $sql = "SELECT " .implode(',', $keys) . " FROM users_groups WHERE group_id = :gid";
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(array(':gid' => $details->gid));
+            $result = $stmt->fetchall(\PDO::FETCH_ASSOC);
+
+            $values = array();
+            foreach ($result as $row) {
+                $rowV = array();
+                foreach ($keys as $key)
+                    $rowV[] = $row[$key];
+                $values[] = $rowV;
+            }
+
+            // http://stackoverflow.com/questions/19680494/insert-multiple-rows-with-pdo-prepared-statements
+            $row_length = count($values[0]);
+            $nb_rows = count($values);
+            $length = $nb_rows * $row_length;
+
+            /* Fill in chunks with '?' and separate them by group of $row_length */
+            $args = implode(',', array_map(
+                function($el) { return '('.implode(',', $el).')'; },
+                array_chunk(array_fill(0, $length, '?'), $row_length)
+            ));
+
+            $params = array();
+            foreach($values as $row)
+            {
+                foreach($row as $value)
+                {
+                    $params[] = $value;
+                }
+            }
+
+            $query = "INSERT INTO users_groups_del (" . implode(',', $keys)  . ") VALUES ".$args;
+            $stmt = DB::getInstance()->prepare($query);
+            $stmt->execute($params);
+        } else {
+            // no expenses found, so we can also delete all categories of this group
+            $sql = "DELETE FROM categories WHERE group_id = :gid";
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(array(':gid' => $details->gid));
+        }
 
         $sql = "DELETE FROM groups WHERE group_id = :gid";
         $stmt = Db::getInstance()->prepare($sql);
@@ -533,7 +648,6 @@ class Group
         $sql = "DELETE FROM users_groups WHERE group_id = :gid";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':gid' => $details->gid));
-
 
         // check if deleted
         $sql = "SELECT COUNT(*) FROM groups WHERE group_id = :gid ";
@@ -589,7 +703,8 @@ class Group
         // error_log("START WITH EID " . $eid);
 
         $uids = explode(',', $expense->uids);
-        $uid = array_pop(array_values($uids));
+        $uidValues = array_values($uids);
+        $uid = array_pop($uidValues);
         $member = new \Models\Member();
         $groupsInfo = $member->getGroupsBalance($uid, false);
 
@@ -603,7 +718,7 @@ class Group
 
         // PHP Fatal error:  Class 'Models\NumberFormatter' not found
         // You just need to enable this extension in php.ini by uncommenting this line:
-        //extension=ext/php_intl.dll
+        // extension=ext/php_intl.dll
         $formatter = new \NumberFormatter('nl_NL', \NumberFormatter::CURRENCY);
         $amount = $formatter->formatCurrency($expense->amount, $groupsInfo[$expense->gid]['currency']);
         $amountpp = $formatter->formatCurrency($expense->amount / count($uids), $groupsInfo[$expense->gid]['currency']);
