@@ -374,7 +374,7 @@ class Group
             } else {
                 // expenses made by user, only set removed flag
                 $sql = "UPDATE users_groups SET removed=1 WHERE group_id=:gid AND user_id = :user_id";
-                error_log($this->pdo_sql_debug($sql, array(':gid' => $gid, ':user_id' => $uid)));
+                // error_log($this->pdo_sql_debug($sql, array(':gid' => $gid, ':user_id' => $uid)));
                 $stmt = Db::getInstance()->prepare($sql);
                 $stmt->execute(array(':gid' => $gid, ':user_id' => $uid));
                 $removed++;
@@ -447,7 +447,7 @@ class Group
             $result = $stmt->fetch(\PDO::FETCH_NUM);
             $expenseCount = $result[0];
             if ($expenseCount > 0){
-                error_log('Error: expenses found for cid ' . $catId . ' in group ' . $gid);
+                error_log('Error: requested to delete category with cid ' . $catId . ' in group ' . $gid . ' but cannot because expenses were found');
                 // add this category to the list as we are not allowed to delete it
                 $cannotDeleteCats[] = $CurrentCategories[$catId];
             }
