@@ -9,6 +9,9 @@ class UsersTest extends \PHPUnit_Framework_TestCase
     protected $client;
 
     protected $knownuser = array('name' => 'whiskey', 'email' => 'exitspam-bert@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser2 = array('user_id' => 2, 'name' => 'monc', 'email' => 'exitspam-daan@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser3 = array('user_id' => 3, 'name' => 'jeepee', 'email' => 'exitspam-jp@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser4 = array('user_id' => 4, 'name' => 'martijn', 'email' => 'exitspam-martijn@yahoo.com', 'pass' => 'testpassword');
     protected $unknownuser = array('name' => 'whiskea', 'pass' => 'testpassword');
     protected $uidNotInOwnGroups = 999;
 
@@ -213,6 +216,16 @@ class UsersTest extends \PHPUnit_Framework_TestCase
         $resultArray = json_decode($content, true);
         $this->assertArrayHasKey('success', $resultArray, "DeleteUser: Key 'success' not found in response when deleting user");
         $this->assertEquals(1, $resultArray['success'], "DeleteUser: Could not delete the new user");
+    }
+
+    public function testForgetPwd()
+    {
+        $userDetails = array('email' => $this->knownuser2['email']);
+        $response = $this->client->request('POST', "/user/forgetpwd", ['json' => $userDetails]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey('success', $resultArray, "ForgetPwd: Key 'success' not found in response when requesting new password");
+        $this->assertEquals(1, $resultArray['success'], "ForgetPwd: Could not get new password for  " . $this->knownuser2['email']);
     }
 
 }

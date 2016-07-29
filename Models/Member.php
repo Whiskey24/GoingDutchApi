@@ -184,17 +184,22 @@ class Member
             return json_encode($response , JSON_NUMERIC_CHECK);
         }
 
-        $sql = "SELECT COUNT(*) FROM users WHERE email = :email";
-        $stmt = Db::getInstance()->prepare($sql);
-        $stmt->execute(array(':email' => $details->email));
-        $result = $stmt->fetch(\PDO::FETCH_NUM);
-        $userCount = $result[0];
+        $userCount = $this->emailInDb($details->email);
         if ($userCount > 0) {
             $response = array('error' => 0, 'exists' => 1);
         } else {
             $response = array('error' => 0, 'exists' => 0);
         }
         return json_encode($response, JSON_NUMERIC_CHECK);
+    }
+
+    private function emailInDb($email) {
+        $sql = "SELECT COUNT(*) FROM users WHERE email = :email";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':email' => $email));
+        $result = $stmt->fetch(\PDO::FETCH_NUM);
+        $userCount = $result[0];
+        return $userCount;
     }
 
     function addNewMember($details){
@@ -223,20 +228,20 @@ class Member
                 VALUES (:username, :password, :email, :realname, :firstName, :lastName, :activated, :confirmation, :reg_date, :last_login, :updated)";
         $stmt = Db::getInstance()->prepare($sql);
 
-        $debug = $this->pdo_sql_debug($sql, array(
-            ':username' => $details->nickName,
-            ':password' => $hash,
-            ':email' => $details->email,
-            ':realname' => $details->firstName . ' ' . $details->lastName ,
-            ':firstName' => $details->firstName,
-            ':lastName' => $details->lastName,
-            ':activated' => 1,
-            ':confirmation' => 0,
-            ':reg_date' => $now,
-            ':last_login' => 0,
-            ':updated' => $now
-        ) );
-        error_log($debug);
+//        $debug = $this->pdo_sql_debug($sql, array(
+//            ':username' => $details->nickName,
+//            ':password' => $hash,
+//            ':email' => $details->email,
+//            ':realname' => $details->firstName . ' ' . $details->lastName ,
+//            ':firstName' => $details->firstName,
+//            ':lastName' => $details->lastName,
+//            ':activated' => 1,
+//            ':confirmation' => 0,
+//            ':reg_date' => $now,
+//            ':last_login' => 0,
+//            ':updated' => $now
+//        ) );
+//        error_log($debug);
 
         $stmt->execute(
             array(
@@ -287,6 +292,66 @@ class Member
         if ($userCount > 0) {
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
+
+        $response = array('success' => 1);
+        return json_encode($response, JSON_NUMERIC_CHECK);
+    }
+
+    function forgetPwd($details){
+        global $app_config;
+
+        $response = array('success' => 0);
+        if (empty($details || empty($details->email))) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        $userCount = $this->emailInDb($details->email);
+        if ($userCount == 0){
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        $sql = "SELECT user_id FROM users WHERE email = :email";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':email' => $details->email));
+        $uid = $stmt->fetchColumn();
+
+        $newPwd = $this->randstr(6);
+        error_log($newPwd);
+        $salt = $app_config['secret']['hash'];
+        $hash = md5($salt . $newPwd . $salt);
+
+        $sql = "UPDATE users SET pwd_recovery = :hash WHERE  user_id = :user_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':hash' => $hash, ':user_id' => $uid));
+
+        $email_subject = "Password reset for Going Dutch";
+        $email_msg = "Somebody (hopefully you) requested a password reset for Going Dutch. You can now login with " . $newPwd . ". Please change this password again.";
+        $from = 'goingdutch@santema.eu';
+
+        $sql = "INSERT INTO email (gid , eid, subject, message, toaddress, fromaddress, submitted)
+                    VALUES (:gid, :eid, :subject, :message, :toaddress, :fromaddress, FROM_UNIXTIME(:submitted))";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':gid' => 0,
+                ':eid' => 0,
+                ':subject' => $email_subject,
+                ':message' => $email_msg,
+                ':toaddress' => $details->email,
+                ':fromaddress' => $from,
+                ':submitted' => time(),
+            )
+        );
+
+
+        $file = 'C:\xampp\htdocs\api.gdutch.nl\sendmail.php';
+
+        //$cmd = "/usr/bin/php5 {$background_mailfile} {$user['email']} {$from} \"{$from_name}\" \"{$subject}\" \"{$body}\" \"{$replyto}\" \"{$sendas}\"";
+        //exec("/usr/bin/php {$background_mailfile} {$user['email']} {$from} {$from_name} {$subject} {$body} {$replyto} {$sendas} > {$ouput} &");
+        $cmd = "C:\\xampp\\php\\php.exe {$file}";
+        $output = '/dev/null';
+        // exec("{$cmd} > {$output} &");
+        exec("{$cmd} ");
 
         $response = array('success' => 1);
         return json_encode($response, JSON_NUMERIC_CHECK);
@@ -372,5 +437,19 @@ class Member
             $sql = preg_replace('/' . $k . '/', "'" . $v . "'", $sql);
         }
         return $sql;
+    }
+
+
+    // http://stackoverflow.com/questions/1992978/generate-a-5-char-long-string-0-9-a-z
+    private function randstr($len) {
+        $currLen = 0;
+        $value = '';
+        while($currLen < $len) {
+            $new = base_convert(rand(), 10, 36);
+            $value .= $new;
+            $currLen += strlen($new);
+        }
+        //$value may be longer than the requested $len
+        return substr($value, 0, $len);
     }
 }

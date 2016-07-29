@@ -89,6 +89,13 @@ $app->delete('/user', function ($request, $response, $args) {
     return $newResponse;
 })->add($auth);
 
+$app->post('/user/forgetpwd', function ($request, $response, $args) {
+    $member = new \Models\Member();
+    $response->write($member->forgetPwd($request->getParsedBody()));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+});
+
 $app->post('/group', function ($request, $response, $args) {
     $group = new \Models\Group();
     $response->write($group->addNewGroup($request->getParsedBody(), \Middleware\Authenticate::$requestUid));

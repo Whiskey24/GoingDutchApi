@@ -61,8 +61,10 @@ ALTER TABLE `users_groups` CHANGE COLUMN `join_date` `join_date` TIMESTAMP NULL 
 
 # Add updated, firstname and lastname column to users
 ALTER TABLE `users` ADD COLUMN `updated` INT(11) NOT NULL DEFAULT '0' AFTER `last_login`;
-ALTER TABLE `users`ADD COLUMN `firstName` VARCHAR(100) NOT NULL AFTER `realname`,
-ADD COLUMN `lastName` VARCHAR(100) NOT NULL AFTER `firstName`;
+ALTER TABLE `users` ADD COLUMN `firstName` VARCHAR(100) NOT NULL AFTER `realname`,
+  ADD COLUMN `lastName` VARCHAR(100) NOT NULL AFTER `firstName`;
+
+ALTER TABLE `users`  ADD COLUMN `pwd_recovery` VARCHAR(35) NOT NULL DEFAULT '0' AFTER `password`;
 
 # Add categories table
 CREATE TABLE `categories` (

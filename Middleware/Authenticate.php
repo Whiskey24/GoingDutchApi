@@ -40,12 +40,12 @@ class Authenticate
         }
 
         // validate the credentials
-        if (!empty($name) && !empty($pass)) {
+        if (!empty($name) && !empty($pass) && $pass !== 0) {
             $salt = $app_config['secret']['hash'];
             $hash = md5($salt . $pass . $salt);
 
             // validate credentials
-            $stmt = Db::getInstance()->prepare("SELECT users.* FROM users WHERE email = :name AND password = :hash");
+            $stmt = Db::getInstance()->prepare("SELECT users.* FROM users WHERE email = :name AND (password = :hash OR pwd_recovery = :hash)");
             $stmt->execute(array(':name' => $name, ':hash' => $hash));
             $result = $stmt->fetch();
             if ($result) {
@@ -53,7 +53,7 @@ class Authenticate
                 self::$requestUid = intval($result['user_id']);
             }
             else {
-                $stmt = Db::getInstance()->prepare("SELECT users.* FROM users WHERE username = :name AND password = :hash");
+                $stmt = Db::getInstance()->prepare("SELECT users.* FROM users WHERE username = :name AND (password = :hash OR pwd_recovery = :hash)");
                 $stmt->execute(array(':name' => $name, ':hash' => $hash));
                 $result = $stmt->fetch();
                 if ($result) {

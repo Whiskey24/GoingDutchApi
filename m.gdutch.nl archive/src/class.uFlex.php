@@ -122,8 +122,7 @@ Returns false on Error
 		$values = implode(",",$values);
 		
 		//Prepare New User	Query
-		$sql = "INSERT INTO users ($into) 
-					VALUES($values)";
+		$sql = "INSERT INTO users ($into) VALUES ($values)";
 		//exit($sql);
 		
 		//Enter New user to Database
