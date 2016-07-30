@@ -178,7 +178,7 @@ class UsersTest extends \PHPUnit_Framework_TestCase
         $newDetails['lastName']  = "Test2";
         $newDetails['nickName']  = "Test3";
         $newDetails['pass']  = "1234";
-        $newDetails['email'] = "test-email123";
+        $newDetails['email'] = "test-email-" . time();
 
         $response = $this->client->request('POST', "/user", ['json' => $newDetails]);
         $content = $response->getBody()->getContents();
@@ -211,7 +211,7 @@ class UsersTest extends \PHPUnit_Framework_TestCase
 
         // try to delete the user
         $delDetails['uid'] = $uid;
-        $response = $this->client->request('DELETE', "/user", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $delDetails]);
+        $response = $this->client->request('DELETE', "/user", ['auth' => [$newDetails['email'], $newDetails['pass']], 'json' => $delDetails]);
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
         $this->assertArrayHasKey('success', $resultArray, "DeleteUser: Key 'success' not found in response when deleting user");

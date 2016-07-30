@@ -65,6 +65,7 @@ ALTER TABLE `users` ADD COLUMN `firstName` VARCHAR(100) NOT NULL AFTER `realname
   ADD COLUMN `lastName` VARCHAR(100) NOT NULL AFTER `firstName`;
 
 ALTER TABLE `users`  ADD COLUMN `pwd_recovery` VARCHAR(35) NOT NULL DEFAULT '0' AFTER `password`;
+ALTER TABLE `users`  ADD COLUMN `account_deleted` INT(1) NOT NULL DEFAULT '0' AFTER `activated`;
 
 # Add categories table
 CREATE TABLE `categories` (

@@ -84,7 +84,7 @@ $app->post('/emailexists', function ($request, $response, $args) {
 
 $app->delete('/user', function ($request, $response, $args) {
     $member = new \Models\Member();
-    $response->write($member->deleteMember($request->getParsedBody()));
+    $response->write($member->deleteMember($request->getParsedBody(), \Middleware\Authenticate::$requestUid));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;
 })->add($auth);

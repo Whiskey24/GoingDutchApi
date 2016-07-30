@@ -45,7 +45,9 @@ class Authenticate
             $hash = md5($salt . $pass . $salt);
 
             // validate credentials
-            $stmt = Db::getInstance()->prepare("SELECT users.* FROM users WHERE email = :name AND (password = :hash OR pwd_recovery = :hash)");
+            $stmt = Db::getInstance()->prepare("SELECT users.* FROM users WHERE email = :name 
+                                                AND (password = :hash OR pwd_recovery = :hash)
+                                                AND account_deleted = 0");
             $stmt->execute(array(':name' => $name, ':hash' => $hash));
             $result = $stmt->fetch();
             if ($result) {
@@ -53,7 +55,9 @@ class Authenticate
                 self::$requestUid = intval($result['user_id']);
             }
             else {
-                $stmt = Db::getInstance()->prepare("SELECT users.* FROM users WHERE username = :name AND (password = :hash OR pwd_recovery = :hash)");
+                $stmt = Db::getInstance()->prepare("SELECT users.* FROM users WHERE username = :name 
+                                                    AND (password = :hash OR pwd_recovery = :hash)
+                                                    AND account_deleted = 0");
                 $stmt->execute(array(':name' => $name, ':hash' => $hash));
                 $result = $stmt->fetch();
                 if ($result) {

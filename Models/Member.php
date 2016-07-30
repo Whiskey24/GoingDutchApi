@@ -224,8 +224,8 @@ class Member
         $hash = md5($salt . $details->pass . $salt);
         $now = time();
 
-        $sql = "INSERT INTO users (username, password, email, realname, firstName, lastName, activated, confirmation, reg_date, last_login, updated)
-                VALUES (:username, :password, :email, :realname, :firstName, :lastName, :activated, :confirmation, :reg_date, :last_login, :updated)";
+        $sql = "INSERT INTO users (username, password, email, realname, firstName, lastName, activated, account_deleted, confirmation, reg_date, last_login, updated)
+                VALUES (:username, :password, :email, :realname, :firstName, :lastName, :activated, :account_deleted, :confirmation, :reg_date, :last_login, :updated)";
         $stmt = Db::getInstance()->prepare($sql);
 
 //        $debug = $this->pdo_sql_debug($sql, array(
@@ -236,6 +236,7 @@ class Member
 //            ':firstName' => $details->firstName,
 //            ':lastName' => $details->lastName,
 //            ':activated' => 1,
+//            ':account_deleted' =>0,
 //            ':confirmation' => 0,
 //            ':reg_date' => $now,
 //            ':last_login' => 0,
@@ -252,6 +253,7 @@ class Member
                 ':firstName' => $details->firstName,
                 ':lastName' => $details->lastName,
                 ':activated' => 1,
+                ':account_deleted' =>0,
                 ':confirmation' => 0,
                 ':reg_date' => $now,
                 ':last_login' => 0,
@@ -263,7 +265,7 @@ class Member
         return json_encode($response, JSON_NUMERIC_CHECK);
     }
 
-    function deleteMember($details){
+    function deleteMember($details, $uid){
         $response = array('success' => 0);
         if (empty($details) || empty($details->email) || empty($details->uid)) {
             return json_encode($response , JSON_NUMERIC_CHECK);
@@ -279,18 +281,49 @@ class Member
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
-        $sql = "DELETE FROM users WHERE user_id = :uid AND email = :email";
-        $stmt = Db::getInstance()->prepare($sql);
-        $stmt->execute(array(':email' => $details->email, ':uid' => $details->uid));
+        // a user can only delete himself
+        if ($uid !== $details->uid){
+            return json_encode($response , JSON_NUMERIC_CHECK);
+        }
 
-        // check if deleted
-        $sql = "SELECT COUNT(*) FROM users WHERE email = :email AND user_id = :uid";
+        // only completely delete a user if he has no expenses or things break
+        $sql = "SELECT COUNT(*) FROM expenses WHERE user_id = :uid";
         $stmt = Db::getInstance()->prepare($sql);
-        $stmt->execute(array(':email' => $details->email, ':uid' => $details->uid));
+        $stmt->execute(array(':uid' => $details->uid));
         $result = $stmt->fetch(\PDO::FETCH_NUM);
-        $userCount = $result[0];
-        if ($userCount > 0) {
-            return json_encode($response, JSON_NUMERIC_CHECK);
+        $count = $result[0];
+        $full_delete = true;
+        if ($count > 0) {
+            $full_delete = false;
+        } else {
+            $sql = "SELECT COUNT(*) FROM users_expenses WHERE user_id = :uid";
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(array(':uid' => $details->uid));
+            $result = $stmt->fetch(\PDO::FETCH_NUM);
+            $count = $result[0];
+            if ($count > 0) {
+                $full_delete = false;
+            }
+        }
+
+        if ($full_delete) {
+            $sql = "DELETE FROM users WHERE user_id = :uid AND email = :email";
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(array(':email' => $details->email, ':uid' => $details->uid));
+
+            // check if deleted
+            $sql = "SELECT COUNT(*) FROM users WHERE email = :email AND user_id = :uid";
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(array(':email' => $details->email, ':uid' => $details->uid));
+            $result = $stmt->fetch(\PDO::FETCH_NUM);
+            $userCount = $result[0];
+            if ($userCount > 0) {
+                return json_encode($response, JSON_NUMERIC_CHECK);
+            }
+        } else {
+            $sql = "UPDATE users SET account_deleted = 1 WHERE user_id = :user_id";
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(array(':user_id' => $details->uid));
         }
 
         $response = array('success' => 1);
