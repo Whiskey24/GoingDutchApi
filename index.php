@@ -70,6 +70,7 @@ $app->put('/user/{uid}/groups', function ($request, $response, $args) {
 
 $app->post('/user', function ($request, $response, $args) {
     $member = new \Models\Member();
+//    error_log( print_r($request->getParsedBody(), 1));
     $response->write($member->addNewMember($request->getParsedBody()));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;

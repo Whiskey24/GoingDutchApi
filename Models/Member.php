@@ -229,12 +229,12 @@ class Member
         $stmt = Db::getInstance()->prepare($sql);
 
 //        $debug = $this->pdo_sql_debug($sql, array(
-//            ':username' => $details->nickName,
+//            ':username' => trim($details->nickName),
 //            ':password' => $hash,
-//            ':email' => $details->email,
-//            ':realname' => $details->firstName . ' ' . $details->lastName ,
-//            ':firstName' => $details->firstName,
-//            ':lastName' => $details->lastName,
+//            ':email' => trim($details->email),
+//            ':realname' => trim($details->fullName),
+//            ':firstName' => trim($details->firstName),
+//            ':lastName' => trim($details->lastName),
 //            ':activated' => 1,
 //            ':account_deleted' =>0,
 //            ':confirmation' => 0,
@@ -246,12 +246,12 @@ class Member
 
         $stmt->execute(
             array(
-                ':username' => $details->nickName,
+                ':username' => trim($details->nickName),
                 ':password' => $hash,
-                ':email' => $details->email,
-                ':realname' => $details->firstName . ' ' . $details->lastName ,
-                ':firstName' => $details->firstName,
-                ':lastName' => $details->lastName,
+                ':email' => trim($details->email),
+                ':realname' => trim($details->fullName),
+                ':firstName' => trim($details->firstName),
+                ':lastName' => trim($details->lastName),
                 ':activated' => 1,
                 ':account_deleted' =>0,
                 ':confirmation' => 0,

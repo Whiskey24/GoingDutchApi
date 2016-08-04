@@ -176,6 +176,7 @@ class UsersTest extends \PHPUnit_Framework_TestCase
         $newDetails = array();
         $newDetails['firstName'] = "Test1";
         $newDetails['lastName']  = "Test2";
+        $newDetails['fullName']  = "Test1 Test2";
         $newDetails['nickName']  = "Test3";
         $newDetails['pass']  = "1234";
         $newDetails['email'] = "test-email-" . time();
