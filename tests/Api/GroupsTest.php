@@ -403,16 +403,18 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not remove user from new group " . $gid);
 
         // Try to delete group as wrong user
-        $delDetails = array('gid' => $gid);
-        $response = $this->client->request('DELETE', "/group", ['auth' => [$this->knownuser2['name'], $this->knownuser['pass']], 'json' => $delDetails]);
+//        $delDetails = array('gid' => $gid);
+//        $response = $this->client->request('DELETE', "/group", ['auth' => [$this->knownuser2['name'], $this->knownuser['pass']], 'json' => $delDetails]);
+        $response = $this->client->request('DELETE', "/group/{$gid}", ['auth' => [$this->knownuser2['name'], $this->knownuser['pass']]]);
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
         $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when deleting group");
         $this->assertEquals(0, $resultArray['success'], "AddDeleteNewGroup: Could delete group " . $gid . " as non-admin");
 
         // Delete group
-        $delDetails = array('gid' => $gid);
-        $response = $this->client->request('DELETE', "/group", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $delDetails]);
+//        $delDetails = array('gid' => $gid);
+//        $response = $this->client->request('DELETE', "/group", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $delDetails]);
+        $response = $this->client->request('DELETE', "/group/{$gid}", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
         $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when deleting group");

@@ -558,20 +558,20 @@ class Group
         return json_encode($response, JSON_NUMERIC_CHECK);
     }
 
-    function deleteGroup($details, $uid){
+    function deleteGroup($gid, $uid){
         $response = array('success' => 0);
-        if (empty($details) || empty($details->gid)) {
+        if (empty($gid)) {
             return json_encode($response , JSON_NUMERIC_CHECK);
         }
 
         // check if deleted by admin
-        if (!$this->validateIsAdminOfGroup($uid, $details->gid)) {
+        if (!$this->validateIsAdminOfGroup($uid, $gid)) {
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
         $sql = "SELECT COUNT(*) FROM expenses WHERE group_id = :gid";
         $stmt = Db::getInstance()->prepare($sql);
-        $stmt->execute(array(':gid' => $details->gid));
+        $stmt->execute(array(':gid' => $gid));
         $result = $stmt->fetch(\PDO::FETCH_NUM);
         $expenseCount = $result[0];
 
@@ -579,7 +579,7 @@ class Group
             // found expenses, copy to groups_del table
             $sql = "SELECT * FROM groups WHERE group_id = :gid";
             $stmt = Db::getInstance()->prepare($sql);
-            $stmt->execute(array(':gid' => $details->gid));
+            $stmt->execute(array(':gid' => $gid));
             $group = $stmt->fetch(\PDO::FETCH_ASSOC);
 
             $sql = "INSERT INTO groups_del (group_id, name, description, reg_date, del_date, currency)
@@ -587,7 +587,7 @@ class Group
             $stmt = Db::getInstance()->prepare($sql);
             $stmt->execute(
                 array(
-                    ':group_id' => $details->gid,
+                    ':group_id' => $gid,
                     ':name' => $group['name'],
                     ':description' => $group['description'],
                     ':reg_date' => $group['reg_date'],
@@ -600,7 +600,7 @@ class Group
             $keys = array ('user_id', 'group_id', 'role_id', 'removed', 'join_date');
             $sql = "SELECT " .implode(',', $keys) . " FROM users_groups WHERE group_id = :gid";
             $stmt = Db::getInstance()->prepare($sql);
-            $stmt->execute(array(':gid' => $details->gid));
+            $stmt->execute(array(':gid' => $gid));
             $result = $stmt->fetchall(\PDO::FETCH_ASSOC);
 
             $values = array();
@@ -638,21 +638,21 @@ class Group
             // no expenses found, so we can also delete all categories of this group
             $sql = "DELETE FROM categories WHERE group_id = :gid";
             $stmt = Db::getInstance()->prepare($sql);
-            $stmt->execute(array(':gid' => $details->gid));
+            $stmt->execute(array(':gid' => $gid));
         }
 
         $sql = "DELETE FROM groups WHERE group_id = :gid";
         $stmt = Db::getInstance()->prepare($sql);
-        $stmt->execute(array(':gid' => $details->gid));
+        $stmt->execute(array(':gid' => $gid));
 
         $sql = "DELETE FROM users_groups WHERE group_id = :gid";
         $stmt = Db::getInstance()->prepare($sql);
-        $stmt->execute(array(':gid' => $details->gid));
+        $stmt->execute(array(':gid' => $gid));
 
         // check if deleted
         $sql = "SELECT COUNT(*) FROM groups WHERE group_id = :gid ";
         $stmt = Db::getInstance()->prepare($sql);
-        $stmt->execute(array(':gid' => $details->gid));
+        $stmt->execute(array(':gid' => $gid));
         $result = $stmt->fetch(\PDO::FETCH_NUM);
         $userCount = $result[0];
         if ($userCount > 0) {

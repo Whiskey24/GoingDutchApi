@@ -99,14 +99,24 @@ $app->post('/user/forgetpwd', function ($request, $response, $args) {
 
 $app->post('/group', function ($request, $response, $args) {
     $group = new \Models\Group();
+    //error_log( print_r($request->getParsedBody(), 1));
     $response->write($group->addNewGroup($request->getParsedBody(), \Middleware\Authenticate::$requestUid));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;
 })->add($auth);
 
-$app->delete('/group', function ($request, $response, $args) {
+//$app->delete('/group', function ($request, $response, $args) {
+//    $group = new \Models\Group();
+//    error_log( print_r($request->getParsedBody(), 1));
+//    $response->write($group->deleteGroup($request->getParsedBody(),\Middleware\Authenticate::$requestUid));
+//    $newResponse = $response->withHeader('Content-type', 'application/json');
+//    return $newResponse;
+//})->add($auth);
+
+$app->delete('/group/{gid}', function ($request, $response, $args) {
     $group = new \Models\Group();
-    $response->write($group->deleteGroup($request->getParsedBody(),\Middleware\Authenticate::$requestUid));
+//    error_log("Deleting group " . $args['gid']);
+    $response->write($group->deleteGroup($args['gid'],\Middleware\Authenticate::$requestUid));
     $newResponse = $response->withHeader('Content-type', 'application/json');
     return $newResponse;
 })->add($auth);
