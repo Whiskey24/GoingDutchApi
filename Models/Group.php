@@ -308,21 +308,23 @@ class Group
         return json_encode($response, JSON_NUMERIC_CHECK);
     }
 
-    function deleteGroupMembers($body, $gid, $uid)
+    function deleteGroupMembers($dUid, $gid, $uid)
     {
         $response = array('success' => 0, 'deleted' => 0, 'removed' => 0);
-        if (empty($body)) {
+        if (empty($dUid)) {
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
         // check if deleted by admin
         if (!$this->validateIsAdminOfGroup($uid, $gid)) {
+            //error_log("Trying to delete {$dUid} in group {$gid} as non-admin");
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
+        error_log("Trying to delete {$dUid} in group {$gid}");
 
-        $uidList = implode(',', $body->user_ids);
-
+        //$uidList = implode(',', $body->user_ids);
+        $uidList = $dUid;
         // check for paid expenses by users
         $sql = "SELECT user_id, COUNT(*) AS ecount FROM expenses WHERE group_id = :gid 
                 AND FIND_IN_SET (user_id, :user_ids) GROUP BY user_id";
@@ -334,6 +336,7 @@ class Group
             )
         );
         $expensePaidCount = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        //error_log(print_r($expensePaidCount ,1));
 
         // check for participated expenses by users
         $sql = "SELECT users_expenses.user_id, COUNT(users_expenses.expense_id) as ecount, group_id 
@@ -347,6 +350,7 @@ class Group
             )
         );
         $expensePartCount = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        //error_log(print_r($expensePartCount ,1));
 
         // array with counts per user
         $expensesCount = array();
@@ -364,6 +368,14 @@ class Group
 
         $deleted = 0;
         $removed = 0;
+        if (empty($expensesCount)){
+            // no expenses made, can completely remove user from group
+            $sql = "DELETE FROM users_groups WHERE group_id = :gid AND user_id = :user_id";
+            $stmt = Db::getInstance()->prepare($sql);
+            $stmt->execute(array(':gid' => $gid, ':user_id' => $dUid));
+            $deleted++;
+        }
+
         foreach ($expensesCount as $uid => $user) {
             if ($user['paid'] == 0 && $user['participated'] == 0) {
                 // no expenses made, can completely remove user from group

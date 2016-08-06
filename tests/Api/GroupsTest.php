@@ -394,9 +394,10 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(-5.22, $resultArray[$gid]['members'][$this->knownuser4['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser4['user_id'] ." in new group " . $gid);
 
         // remove user from the group
-        $userDetails = array('user_ids');
-        $userDetails['user_ids'][] = $this->knownuser2['user_id'];
-        $response = $this->client->request('DELETE', "/group/{$gid}/members", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $userDetails]);
+//        $userDetails = array('user_ids');
+//        $userDetails['user_ids'][] = $this->knownuser2['user_id'];
+//        $response = $this->client->request('DELETE', "/group/{$gid}/members", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $userDetails]);
+        $response = $this->client->request('DELETE', "/group/{$gid}/members/{$this->knownuser2['user_id']}", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $userDetails]);
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
         $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when removing user from new group");
