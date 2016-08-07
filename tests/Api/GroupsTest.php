@@ -393,6 +393,14 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(-9.33, $resultArray[$gid]['members'][$this->knownuser3['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser3['user_id'] ." in new group " . $gid);
         $this->assertEquals(-5.22, $resultArray[$gid]['members'][$this->knownuser4['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser4['user_id'] ." in new group " . $gid);
 
+        // make another user also admin
+        $userDetails = array('role_id' => 1);
+        $response = $this->client->request('PUT', "/group/{$gid}/members/{$this->knownuser3['user_id']}", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $userDetails]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when making user admin in new group");
+        $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not make user admin in new group " . $gid);
+
         // remove user from the group
 //        $userDetails = array('user_ids');
 //        $userDetails['user_ids'][] = $this->knownuser2['user_id'];

@@ -145,6 +145,14 @@ $app->delete('/group/{gid}/members/{uid}', function ($request, $response, $args)
     return $newResponse;
 })->add($auth);
 
+$app->put('/group/{gid}/members/{uid}', function ($request, $response, $args) {
+    $group = new \Models\Group();
+    //error_log( $request->getParsedBody());
+    $response->write($group->changeRole($args['uid'], $args['gid'], $request->getParsedBody(), \Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
 // Edit, add & delete group categories
 $app->put('/group/{gid}/categories', function ($request, $response, $args) {
     $group = new \Models\Group();

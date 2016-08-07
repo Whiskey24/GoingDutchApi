@@ -308,6 +308,61 @@ class Group
         return json_encode($response, JSON_NUMERIC_CHECK);
     }
 
+    function changeRole($targetUid, $gid, $request, $rUid){
+        $response = array('success' => 0, 'error' => 1, 'invalid_request' => 0);
+        if (empty($targetUid) || empty($gid) || empty($request)
+            || !isset($request->role_id) || $request->role_id == '' || $request->role_id > 5) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        // validate uids are part of the group
+        if (!$this->validateUids($rUid . ',' . $targetUid, $gid)) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        $keys = array ('user_id', 'group_id', 'role_id', 'removed', 'join_date');
+        $sql = "SELECT " .implode(',', $keys) . " FROM users_groups WHERE group_id = :gid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $gid));
+        $result = $stmt->fetchall(\PDO::FETCH_ASSOC);
+
+        $targetRoleId = $request->role_id;
+        $requesterRoleId = 4;
+        $currentTargetRoleId = 4;
+        $founderCount = 0;
+        foreach($result as $row){
+            if ($row['user_id'] == $targetUid) $currentTargetRoleId = $row['role_id'];
+            if ($row['user_id'] == $rUid) $requesterRoleId = $row['role_id'];
+            if ($row['role_id'] == 0) $founderCount++;
+        }
+
+        $response = array('success' => 0, 'error' => 0, 'invalid_request' => 1);
+
+        // first deal with lowering founder role
+        // if currently founder, only user himself can lower role
+        if ($targetRoleId > 0 && $currentTargetRoleId == 0 && $rUid != $targetUid){
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        // if user himself lowers from founder, there must be at least one other founder left in the group
+        if ($targetRoleId > 0 && $currentTargetRoleId == 0 && $founderCount < 2){
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        // users can only grant privileges lower or equal to their own
+        if ($targetRoleId > $requesterRoleId){
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        $sql = "UPDATE users_groups SET role_id=:role_id WHERE group_id=:gid AND user_id = :user_id";
+        // error_log($this->pdo_sql_debug($sql, array(':gid' => $gid, ':user_id' => $uid)));
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $gid, ':user_id' => $targetUid, ':role_id' => $targetRoleId));
+
+        $response = array('success' => 1, 'new_role' => $targetRoleId);
+        return json_encode($response, JSON_NUMERIC_CHECK);
+    }
+
     function deleteGroupMembers($dUid, $gid, $uid)
     {
         $response = array('success' => 0, 'deleted' => 0, 'removed' => 0);
