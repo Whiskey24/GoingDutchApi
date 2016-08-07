@@ -393,13 +393,24 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(-9.33, $resultArray[$gid]['members'][$this->knownuser3['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser3['user_id'] ." in new group " . $gid);
         $this->assertEquals(-5.22, $resultArray[$gid]['members'][$this->knownuser4['user_id']]['balance'], "AddDeleteNewGroup: Incorrect balance for user " . $this->knownuser4['user_id'] ." in new group " . $gid);
 
-        // make another user also admin
+        // make another user also admin by non admin
+        $userDetails = array('role_id' => 1);
+        $response = $this->client->request('PUT', "/group/{$gid}/members/{$this->knownuser3['user_id']}", ['auth' => [$this->knownuser2['name'], $this->knownuser2['pass']], 'json' => $userDetails]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when making user admin in new group");
+        $this->assertEquals(0, $resultArray['success'], "AddDeleteNewGroup: Could not make user admin in new group " . $gid);
+        $this->assertArrayHasKey('invalid_request', $resultArray, "AddDeleteNewGroup: Key 'invalid-request' not found in response when making user admin in new group");
+        $this->assertEquals(1, $resultArray['invalid_request'], "AddDeleteNewGroup: non-admin user could make user admin in new group " . $gid);
+
+        // make another user also admin by admin
         $userDetails = array('role_id' => 1);
         $response = $this->client->request('PUT', "/group/{$gid}/members/{$this->knownuser3['user_id']}", ['auth' => [$this->knownuser['name'], $this->knownuser['pass']], 'json' => $userDetails]);
         $content = $response->getBody()->getContents();
         $resultArray = json_decode($content, true);
         $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when making user admin in new group");
         $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not make user admin in new group " . $gid);
+
 
         // remove user from the group
 //        $userDetails = array('user_ids');

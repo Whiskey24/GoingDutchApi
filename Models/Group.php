@@ -341,16 +341,19 @@ class Group
         // first deal with lowering founder role
         // if currently founder, only user himself can lower role
         if ($targetRoleId > 0 && $currentTargetRoleId == 0 && $rUid != $targetUid){
+            // error_log("if currently founder, only user himself can lower role");
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
         // if user himself lowers from founder, there must be at least one other founder left in the group
         if ($targetRoleId > 0 && $currentTargetRoleId == 0 && $founderCount < 2){
+            // error_log("if user himself lowers from founder, there must be at least one other founder left in the group");
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
         // users can only grant privileges lower or equal to their own
-        if ($targetRoleId > $requesterRoleId){
+        if ($targetRoleId < $requesterRoleId){
+            // error_log("users can only grant privileges lower or equal to their own");
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
