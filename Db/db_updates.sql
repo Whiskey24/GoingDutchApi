@@ -55,6 +55,7 @@ ALTER TABLE `users_groups_del`
 
 # Add sort to user groups
 ALTER TABLE `users_groups` ADD COLUMN `sort` INT(3) NOT NULL AFTER `group_id`;
+ALTER TABLE `users_groups` ADD COLUMN `send_mail` TINYINT(4) NOT NULL DEFAULT '1' AFTER `role_id`;
 
 # Make sure join date is not overwritten with sort updates
 ALTER TABLE `users_groups` CHANGE COLUMN `join_date` `join_date` TIMESTAMP NULL AFTER `removed`;

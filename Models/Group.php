@@ -366,6 +366,36 @@ class Group
         return json_encode($response, JSON_NUMERIC_CHECK);
     }
 
+
+    function sendEmail($targetUid, $gid, $request, $rUid){
+        $response = array('success' => 0, 'error' => 1, 'invalid_request' => 0);
+        if (empty($targetUid) || empty($gid) || empty($request)
+            || !isset($request->send_email) || $request->send_email== '' ) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        // validate uids are part of the group
+        if (!$this->validateUids($rUid . ',' . $targetUid, $gid)) {
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        $send_mail = $request->send_email == 0 ? 0 : 1;
+        $response = array('success' => 0, 'error' => 0, 'invalid_request' => 1);
+
+        if ($rUid != $targetUid){
+            // error_log("if currently founder, only user himself can lower role");
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        $sql = "UPDATE users_groups SET send_mail=:send_mail WHERE group_id=:gid AND user_id = :user_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(':gid' => $gid, ':user_id' => $targetUid, ':send_mail' => $send_mail));
+
+        $response = array('success' => 1, 'send_mail' => $send_mail);
+        return json_encode($response, JSON_NUMERIC_CHECK);
+    }
+
+
     function deleteGroupMembers($dUid, $gid, $uid)
     {
         $response = array('success' => 0, 'deleted' => 0, 'removed' => 0);
