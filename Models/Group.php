@@ -370,12 +370,15 @@ class Group
     function sendEmail($targetUid, $gid, $request, $rUid){
         $response = array('success' => 0, 'error' => 1, 'invalid_request' => 0);
         if (empty($targetUid) || empty($gid) || empty($request)
-            || !isset($request->send_email) || $request->send_email== '' ) {
+            || !isset($request->send_email) || $request->send_email === '' ) {
+            // error_log("send email change failed targetuid $targetUid gid $gid rUid $rUid");
+            // error_log(print_r($request,1));
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
         // validate uids are part of the group
         if (!$this->validateUids($rUid . ',' . $targetUid, $gid)) {
+            error_log("uids are not part of the group");
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
@@ -383,7 +386,7 @@ class Group
         $response = array('success' => 0, 'error' => 0, 'invalid_request' => 1);
 
         if ($rUid != $targetUid){
-            // error_log("if currently founder, only user himself can lower role");
+            error_log("uid does not match target uid");
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
@@ -808,6 +811,13 @@ class Group
         $member = new \Models\Member();
         $groupsInfo = $member->getGroupsBalance($uid, false);
 
+        // keep track of users that do not want email
+        // error_log(print_r($groupsInfo ,1));
+        $noMailUsers = array();
+        foreach ($groupsInfo[$expense->gid]['members'] as $member){
+            if ($member['send_mail'] == 0) $noMailUsers[] = $member['uid'];
+        }
+
         $uidDetails = $this->getUserDetails(implode(',', array_keys($groupsInfo[$expense->gid]['members'])));
 
         // error_log(print_r($groupsInfo, 1));
@@ -860,6 +870,7 @@ class Group
         $balanceTable = "\n<table>\n";
         $i = 1;
         // error_log(print_r($uidDetails,1));
+        // error_log(print_r($groupsInfo[$expense->gid]['members'],1));
         foreach ($groupsInfo[$expense->gid]['members'] as $member) {
             $posArray[$member['uid']] = $i;
             $b = $formatter->formatCurrency($member['balance'], $groupsInfo[$expense->gid]['currency']);
@@ -930,20 +941,22 @@ class Group
                 $message = preg_replace('/The costs per person .* current balance/', 'Your current balance is now', $message);
             }
 
-            $sql = "INSERT INTO email (gid , eid, subject, message, toaddress, fromaddress, submitted)
+            if (!in_array($uid, $noMailUsers )) {
+                $sql = "INSERT INTO email (gid , eid, subject, message, toaddress, fromaddress, submitted)
                     VALUES (:gid, :eid, :subject, :message, :toaddress, :fromaddress, FROM_UNIXTIME(:submitted))";
-            $stmt = Db::getInstance()->prepare($sql);
-            $stmt->execute(
-                array(
-                    ':gid' => $expense->gid,
-                    ':eid' => $eid,
-                    ':subject' => $subject,
-                    ':message' => $message,
-                    ':toaddress' => $to,
-                    ':fromaddress' => $from,
-                    ':submitted' => time(),
-                )
-            );
+                $stmt = Db::getInstance()->prepare($sql);
+                $stmt->execute(
+                    array(
+                        ':gid' => $expense->gid,
+                        ':eid' => $eid,
+                        ':subject' => $subject,
+                        ':message' => $message,
+                        ':toaddress' => $to,
+                        ':fromaddress' => $from,
+                        ':submitted' => time(),
+                    )
+                );
+            }
         }
 
         $file = 'C:\xampp\htdocs\api.gdutch.nl\sendmail.php';

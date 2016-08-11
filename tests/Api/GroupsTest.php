@@ -411,6 +411,18 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
         $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when making user admin in new group");
         $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not make user admin in new group " . $gid);
 
+        // set send emails to false for a user
+        $userDetails = array('send_email' => 0);
+        $response = $this->client->request('PUT', "/group/{$gid}/members/{$this->knownuser4['user_id']}/email", ['auth' => [$this->knownuser4['email'], $this->knownuser4['pass']], 'json' => $userDetails]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertArrayHasKey('success', $resultArray, "AddDeleteNewGroup: Key 'success' not found in response when setting email to false in new group");
+        $this->assertEquals(1, $resultArray['success'], "AddDeleteNewGroup: Could not set email to false for user in new group " . $gid);
+
+        $response = $this->client->get('/groups', ['auth' => [$this->knownuser['name'], $this->knownuser['pass']]]);
+        $content = $response->getBody()->getContents();
+        $resultArray = json_decode($content, true);
+        $this->assertEquals(0, $resultArray[$gid]['members'][$this->knownuser4['user_id']]['send_mail'], "AddDeleteNewGroup: Send mail not set to false for user " . $this->knownuser4['user_id'] ." in new group " . $gid);
 
         // remove user from the group
 //        $userDetails = array('user_ids');
