@@ -140,6 +140,28 @@ class Member
         return json_encode($details, JSON_NUMERIC_CHECK);
     }
 
+    function updatePassword($uid, $details, $rUid){
+        if (empty($details->password) || $uid != $rUid){
+            $response = array('success' => 0);
+            return json_encode($response, JSON_NUMERIC_CHECK);
+        }
+
+        global $app_config;
+        $salt = $app_config['secret']['hash'];
+        $hash = md5($salt . $details->password . $salt);
+
+        $sql = "UPDATE users SET password=:password WHERE user_id=:uid";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(array(
+            ':password' => $hash,
+            ':uid' => $uid
+        ));
+
+        $response = array('success' => 1);
+        return json_encode($response, JSON_NUMERIC_CHECK);
+
+    }
+
     function updateMemberDetails($requestUid, $details, $askedByUid)
     {
         if ($requestUid != $askedByUid || $requestUid != $details->uid){

@@ -61,6 +61,13 @@ $app->put('/user/{uid}/details', function ($request, $response, $args) {
     return $newResponse;
 })->add($auth);
 
+$app->put('/user/{uid}/pass', function ($request, $response, $args) {
+    $member = new \Models\Member();
+    $response->write($member->updatePassword($args['uid'], $request->getParsedBody(), \Middleware\Authenticate::$requestUid));
+    $newResponse = $response->withHeader('Content-type', 'application/json');
+    return $newResponse;
+})->add($auth);
+
 $app->put('/user/{uid}/groups', function ($request, $response, $args) {
     $member = new \Models\Member();
     $response->write($member->updateGroupSort($request->getParsedBody(), $args['uid'], \Middleware\Authenticate::$requestUid));
