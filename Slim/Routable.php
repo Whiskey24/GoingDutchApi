@@ -2,9 +2,9 @@
 /**
  * Slim Framework (http://slimframework.com)
  *
- * @link      https://github.com/codeguy/Slim
- * @copyright Copyright (c) 2011-2015 Josh Lockhart
- * @license   https://github.com/codeguy/Slim/blob/master/LICENSE (MIT License)
+ * @link      https://github.com/slimphp/Slim
+ * @copyright Copyright (c) 2011-2016 Josh Lockhart
+ * @license   https://github.com/slimphp/Slim/blob/3.x/LICENSE.md (MIT License)
  */
 namespace Slim;
 
@@ -19,7 +19,7 @@ use Interop\Container\ContainerInterface;
 abstract class Routable
 {
     use CallableResolverAwareTrait;
-
+    
     /**
      * Route callable
      *
@@ -79,5 +79,28 @@ abstract class Routable
     {
         $this->container = $container;
         return $this;
+    }
+
+    /**
+     * Prepend middleware to the middleware collection
+     *
+     * @param callable|string $callable The callback routine
+     *
+     * @return static
+     */
+    public function add($callable)
+    {
+        $this->middleware[] = new DeferredCallable($callable, $this->container);
+        return $this;
+    }
+    
+    /**
+     * Set the route pattern
+     *
+     * @set string
+     */
+    public function setPattern($newPattern)
+    {
+        $this->pattern = $newPattern;
     }
 }

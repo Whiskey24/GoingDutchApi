@@ -2,9 +2,9 @@
 /**
  * Slim Framework (http://slimframework.com)
  *
- * @link      https://github.com/codeguy/Slim
- * @copyright Copyright (c) 2011-2015 Josh Lockhart
- * @license   https://github.com/codeguy/Slim/blob/master/LICENSE (MIT License)
+ * @link      https://github.com/slimphp/Slim
+ * @copyright Copyright (c) 2011-2016 Josh Lockhart
+ * @license   https://github.com/slimphp/Slim/blob/3.x/LICENSE.md (MIT License)
  */
 namespace Slim;
 
@@ -31,33 +31,14 @@ class RouteGroup extends Routable implements RouteGroupInterface
     }
 
     /**
-     * Prepend middleware to the group middleware collection
-     *
-     * @param mixed $callable The callback routine
-     *
-     * @return static
-     */
-    public function add($callable)
-    {
-        $callable = $this->resolveCallable($callable);
-        if ($callable instanceof Closure) {
-            $callable = $callable->bindTo($this->container);
-        }
-
-        array_unshift($this->middleware, $callable);
-
-        return $this;
-    }
-
-    /**
      * Invoke the group to register any Routable objects within it.
      *
      * @param App $app The App to bind the callable to.
      */
-    public function __invoke(App $app)
+    public function __invoke(App $app = null)
     {
         $callable = $this->resolveCallable($this->callable);
-        if ($callable instanceof Closure) {
+        if ($callable instanceof Closure && $app !== null) {
             $callable = $callable->bindTo($app);
         }
 

@@ -12,6 +12,8 @@ require_once 'Db/Db.php';
 
 // ToDo: use this for compression - http://pieroxy.net/blog/pages/lz-string/index.html
 
+use \Psr\Http\Message\ServerRequestInterface as Request;
+use \Psr\Http\Message\ResponseInterface as Response;
 
 
 $app = new \Slim\App();

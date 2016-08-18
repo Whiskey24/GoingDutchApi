@@ -2,14 +2,15 @@
 /**
  * Slim Framework (http://slimframework.com)
  *
- * @link      https://github.com/codeguy/Slim
- * @copyright Copyright (c) 2011-2015 Josh Lockhart
- * @license   https://github.com/codeguy/Slim/blob/master/LICENSE (MIT License)
+ * @link      https://github.com/slimphp/Slim
+ * @copyright Copyright (c) 2011-2016 Josh Lockhart
+ * @license   https://github.com/slimphp/Slim/blob/3.x/LICENSE.md (MIT License)
  */
 namespace Slim;
 
 use RuntimeException;
 use Interop\Container\ContainerInterface;
+use Slim\Interfaces\CallableResolverInterface;
 
 /**
  * ResolveCallable
@@ -26,7 +27,7 @@ trait CallableResolverAwareTrait
      * Resolve a string of the format 'class:method' into a closure that the
      * router can dispatch.
      *
-     * @param string $callable
+     * @param callable|string $callable
      *
      * @return \Closure
      *
@@ -34,18 +35,13 @@ trait CallableResolverAwareTrait
      */
     protected function resolveCallable($callable)
     {
-        if (is_string($callable) && !is_callable($callable)) {
-            if ($this->container instanceof ContainerInterface) {
-                $container = $this->container;
-            } else {
-                throw new RuntimeException('Cannot resolve callable string');
-            }
-            /** @var CallableResolver $resolver */
-            $resolver = clone($container->get('callableResolver')); // we need a new one each time
-            $resolver->setToResolve($callable);
-            $callable = $resolver;
+        if (!$this->container instanceof ContainerInterface) {
+            return $callable;
         }
 
-        return $callable;
+        /** @var CallableResolverInterface $resolver */
+        $resolver = $this->container->get('callableResolver');
+
+        return $resolver->resolve($callable);
     }
 }

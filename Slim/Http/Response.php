@@ -2,15 +2,16 @@
 /**
  * Slim Framework (http://slimframework.com)
  *
- * @link      https://github.com/codeguy/Slim
- * @copyright Copyright (c) 2011-2015 Josh Lockhart
- * @license   https://github.com/codeguy/Slim/blob/master/LICENSE (MIT License)
+ * @link      https://github.com/slimphp/Slim
+ * @copyright Copyright (c) 2011-2016 Josh Lockhart
+ * @license   https://github.com/slimphp/Slim/blob/3.x/LICENSE.md (MIT License)
  */
 namespace Slim\Http;
 
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
+use Psr\Http\Message\UriInterface;
 use Slim\Interfaces\Http\HeadersInterface;
 
 /**
@@ -97,6 +98,7 @@ class Response extends Message implements ResponseInterface
         428 => 'Precondition Required',
         429 => 'Too Many Requests',
         431 => 'Request Header Fields Too Large',
+        451 => 'Unavailable For Legal Reasons',
         //Server Error 5xx
         500 => 'Internal Server Error',
         501 => 'Not Implemented',
@@ -134,7 +136,6 @@ class Response extends Message implements ResponseInterface
     public function __clone()
     {
         $this->headers = clone $this->headers;
-        $this->body = clone $this->body;
     }
 
     /*******************************************************************************
@@ -184,6 +185,14 @@ class Response extends Message implements ResponseInterface
 
         $clone = clone $this;
         $clone->status = $code;
+        if ($reasonPhrase === '' && isset(static::$messages[$code])) {
+            $reasonPhrase = static::$messages[$code];
+        }
+
+        if ($reasonPhrase === '') {
+            throw new InvalidArgumentException('ReasonPhrase must be supplied for this code');
+        }
+
         $clone->reasonPhrase = $reasonPhrase;
 
         return $clone;
@@ -198,7 +207,7 @@ class Response extends Message implements ResponseInterface
      */
     protected function filterStatus($status)
     {
-        if (!is_integer($status) || !isset(static::$messages[$status])) {
+        if (!is_integer($status) || $status<100 || $status>599) {
             throw new InvalidArgumentException('Invalid HTTP status code');
         }
 
@@ -223,7 +232,10 @@ class Response extends Message implements ResponseInterface
         if ($this->reasonPhrase) {
             return $this->reasonPhrase;
         }
-        return static::$messages[$this->status];
+        if (isset(static::$messages[$this->status])) {
+            return static::$messages[$this->status];
+        }
+        return '';
     }
 
     /*******************************************************************************
@@ -259,13 +271,23 @@ class Response extends Message implements ResponseInterface
      * This method prepares the response object to return an HTTP Redirect
      * response to the client.
      *
-     * @param  string $url    The redirect destination.
-     * @param  int    $status The redirect HTTP status code.
+     * @param  string|UriInterface $url    The redirect destination.
+     * @param  int|null            $status The redirect HTTP status code.
      * @return self
      */
-    public function withRedirect($url, $status = 302)
+    public function withRedirect($url, $status = null)
     {
-        return $this->withStatus($status)->withHeader('Location', $url);
+        $responseWithRedirect = $this->withHeader('Location', (string)$url);
+
+        if (is_null($status) && $this->getStatusCode() === 200) {
+            $status = 302;
+        }
+
+        if (!is_null($status)) {
+            return $responseWithRedirect->withStatus($status);
+        }
+
+        return $responseWithRedirect;
     }
 
     /**
@@ -279,15 +301,25 @@ class Response extends Message implements ResponseInterface
      * @param  mixed  $data   The data
      * @param  int    $status The HTTP status code.
      * @param  int    $encodingOptions Json encoding options
+     * @throws \RuntimeException
      * @return self
      */
-    public function withJson($data, $status = 200, $encodingOptions = 0)
+    public function withJson($data, $status = null, $encodingOptions = 0)
     {
         $body = $this->getBody();
         $body->rewind();
-        $body->write(json_encode($data, $encodingOptions));
+        $body->write($json = json_encode($data, $encodingOptions));
 
-        return $this->withStatus($status)->withHeader('Content-Type', 'application/json;charset=utf-8');
+        // Ensure that the json encoding passed successfully
+        if ($json === false) {
+            throw new \RuntimeException(json_last_error_msg(), json_last_error());
+        }
+
+        $responseWithJson = $this->withHeader('Content-Type', 'application/json;charset=utf-8');
+        if (isset($status)) {
+            return $responseWithJson->withStatus($status);
+        }
+        return $responseWithJson;
     }
 
     /**

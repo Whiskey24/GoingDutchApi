@@ -2,14 +2,13 @@
 /**
  * Slim Framework (http://slimframework.com)
  *
- * @link      https://github.com/codeguy/Slim
- * @copyright Copyright (c) 2011-2015 Josh Lockhart
- * @license   https://github.com/codeguy/Slim/blob/master/LICENSE (MIT License)
+ * @link      https://github.com/slimphp/Slim
+ * @copyright Copyright (c) 2011-2016 Josh Lockhart
+ * @license   https://github.com/slimphp/Slim/blob/3.x/LICENSE.md (MIT License)
  */
 namespace Slim\Http;
 
-use Slim\Http\Collection;
-use Slim\Http\Environment;
+use Slim\Collection;
 use Slim\Interfaces\Http\HeadersInterface;
 
 /**
@@ -52,6 +51,7 @@ class Headers extends Collection implements HeadersInterface
     public static function createFromEnvironment(Environment $environment)
     {
         $data = [];
+        $environment = self::determineAuthorization($environment);
         foreach ($environment as $key => $value) {
             $key = strtoupper($key);
             if (isset(static::$special[$key]) || strpos($key, 'HTTP_') === 0) {
@@ -62,6 +62,30 @@ class Headers extends Collection implements HeadersInterface
         }
 
         return new static($data);
+    }
+
+    /**
+     * If HTTP_AUTHORIZATION does not exist tries to get it from
+     * getallheaders() when available.
+     *
+     * @param Environment $environment The Slim application Environment
+     *
+     * @return Environment
+     */
+
+    public static function determineAuthorization(Environment $environment)
+    {
+        $authorization = $environment->get('HTTP_AUTHORIZATION');
+
+        if (null === $authorization && is_callable('getallheaders')) {
+            $headers = getallheaders();
+            $headers = array_change_key_case($headers, CASE_LOWER);
+            if (isset($headers['authorization'])) {
+                $environment->set('HTTP_AUTHORIZATION', $headers['authorization']);
+            }
+        }
+
+        return $environment;
     }
 
     /**
