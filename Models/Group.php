@@ -181,7 +181,7 @@ class Group
         if (!isset($expense['type']))
             $expense['type'] = 1;
         
-        $sql = "UPDATE expenses SET type=:type, cid=:cid, user_id=:user_id, description=:description, amount=:amount, event_id=:event_id, timestamp=:updated,
+        $sql = "UPDATE expenses SET type=:type, cid=:cid, user_id=:user_id, description=:description, amount=:amount, event_id=:event_id, 
                 currency=:currency, timezoneoffset=:timezoneoffset, expense_date=FROM_UNIXTIME(:created), timestamp=FROM_UNIXTIME(:updated)
                 WHERE expense_id=:eid AND group_id=:group_id";
         $stmt = Db::getInstance()->prepare($sql);
