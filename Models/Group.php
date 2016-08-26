@@ -160,7 +160,7 @@ class Group
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':eid' => $eid));
 
-        $expense = json_decode(json_encode($expense), FALSE);
+        $expense = json_decode(json_encode($expense), TRUE);
         $this->addExpenseEmail($expense, $eid, 'delete');
 
         return $eid;

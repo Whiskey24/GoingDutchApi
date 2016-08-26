@@ -151,7 +151,7 @@ class UsersTest extends \PHPUnit_Framework_TestCase
         }
 
         // restore old values
-        $response = $this->client->request('PUT', "/user/{$uid}/details", ['auth' => [$newDetails['nickName'], $this->knownuser['pass']], 'json' => $existingDetails]);
+        $response = $this->client->request('PUT', "/user/{$uid}/details", ['auth' => [$newDetails['email'], $this->knownuser['pass']], 'json' => $existingDetails]);
     }
 
     public function testEmailExists() {

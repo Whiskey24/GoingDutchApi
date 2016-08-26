@@ -368,7 +368,7 @@ class Member
         $uid = $stmt->fetchColumn();
 
         $newPwd = $this->randstr(6);
-        error_log($newPwd);
+        // error_log($newPwd);
         $salt = $app_config['secret']['hash'];
         $hash = md5($salt . $newPwd . $salt);
 
