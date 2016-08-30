@@ -46,6 +46,14 @@ class Db{
     private function __clone(){
     }
 
+    public static function triggerSendMail() {
+        $file = 'C:\xampp\htdocs\api.gdutch.nl\sendmail.php';
+        $cmd = "C:\\xampp\\php\\php.exe {$file}";
+//        $output = '/dev/null';
+        // exec("{$cmd} > {$output} &");
+        exec("{$cmd} ");
+    }
+
 } /*** end of class ***/
 
 /*

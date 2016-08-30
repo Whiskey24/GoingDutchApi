@@ -149,7 +149,7 @@ class Member
 
         global $app_config;
         $salt = $app_config['secret']['hash'];
-        $hash = md5($salt . $details-['password'] . $salt);
+        $hash = md5($salt . $details['password'] . $salt);
 
         $sql = "UPDATE users SET password=:password WHERE user_id=:uid";
         $stmt = Db::getInstance()->prepare($sql);
@@ -262,7 +262,7 @@ class Member
         $sql = "INSERT INTO users (username, password, email, realname, firstName, lastName, activated, account_deleted, confirmation, reg_date, last_login, updated)
                 VALUES (:username, :password, :email, :realname, :firstName, :lastName, :activated, :account_deleted, :confirmation, :reg_date, :last_login, :updated)";
         $stmt = Db::getInstance()->prepare($sql);
-        
+
         $stmt->execute(
             array(
                 ':username' => trim($details['nickName']),
@@ -400,11 +400,11 @@ class Member
 
         //$cmd = "/usr/bin/php5 {$background_mailfile} {$user['email']} {$from} \"{$from_name}\" \"{$subject}\" \"{$body}\" \"{$replyto}\" \"{$sendas}\"";
         //exec("/usr/bin/php {$background_mailfile} {$user['email']} {$from} {$from_name} {$subject} {$body} {$replyto} {$sendas} > {$ouput} &");
-        $cmd = "C:\\xampp\\php\\php.exe {$file}";
-        $output = '/dev/null';
+//        $cmd = "C:\\xampp\\php\\php.exe {$file}";
+//        $output = '/dev/null';
         // exec("{$cmd} > {$output} &");
-        exec("{$cmd} ");
-
+        //exec("{$cmd} ");
+        Db::triggerSendMail();
         $response = array('success' => 1);
         return json_encode($response, JSON_NUMERIC_CHECK);
     }

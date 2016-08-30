@@ -180,7 +180,7 @@ class Group
 
         if (!isset($expense['type']))
             $expense['type'] = 1;
-        
+
         $sql = "UPDATE expenses SET type=:type, cid=:cid, user_id=:user_id, description=:description, amount=:amount, event_id=:event_id, 
                 currency=:currency, timezoneoffset=:timezoneoffset, expense_date=FROM_UNIXTIME(:created), timestamp=FROM_UNIXTIME(:updated)
                 WHERE expense_id=:eid AND group_id=:group_id";
@@ -631,13 +631,14 @@ class Group
         );
         $gid = Db::getInstance()->lastInsertId();
 
-        $sql = "INSERT INTO users_groups (user_id, group_id, role_id, join_date)
-                VALUES (:user_id, :group_id, :role_id, FROM_UNIXTIME(:submitted))";
+        $sql = "INSERT INTO users_groups (user_id, group_id, sort, role_id, join_date)
+                VALUES (:user_id, :group_id, :sort, :role_id, FROM_UNIXTIME(:submitted))";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(
             array(
                 ':user_id' => $uid,
                 ':group_id' => $gid,
+                ':sort' => 0,
                 ':role_id' => 0,
                 ':submitted' => time()
             )
@@ -872,7 +873,11 @@ class Group
         $balanceTable = "\n<table>\n";
         $i = 1;
         // error_log(print_r($uidDetails,1));
-        // error_log(print_r($groupsInfo[$expense->gid]['members'],1));
+        // error_log(print_r($groupsInfo[$expense['gid']]['members'],1));
+
+        $this->aasort($groupsInfo[$expense['gid']]['members'],"balance", true);
+        //error_log(print_r($groupsInfo[$expense['gid']]['members'],1));
+
         foreach ($groupsInfo[$expense['gid']]['members'] as $member) {
             $posArray[$member['uid']] = $i;
             $b = $formatter->formatCurrency($member['balance'], $groupsInfo[$expense['gid']]['currency']);
@@ -961,14 +966,16 @@ class Group
             }
         }
 
-        $file = 'C:\xampp\htdocs\api.gdutch.nl\sendmail.php';
+//        $file = 'C:\xampp\htdocs\api.gdutch.nl\sendmail.php';
 
         //$cmd = "/usr/bin/php5 {$background_mailfile} {$user['email']} {$from} \"{$from_name}\" \"{$subject}\" \"{$body}\" \"{$replyto}\" \"{$sendas}\"";
         //exec("/usr/bin/php {$background_mailfile} {$user['email']} {$from} {$from_name} {$subject} {$body} {$replyto} {$sendas} > {$ouput} &");
-        $cmd = "C:\\xampp\\php\\php.exe {$file}";
-        $output = '/dev/null';
+//        $cmd = "C:\\xampp\\php\\php.exe {$file}";
+//        $output = '/dev/null';
         // exec("{$cmd} > {$output} &");
-        exec("{$cmd} ");
+        // exec("{$cmd} ");
+        Db::triggerSendMail();
+
     }
 
     private function getUserDetails($uids)
@@ -1000,6 +1007,27 @@ class Group
         $result = $stmt->fetchAll(\PDO::FETCH_COLUMN);
         return $result;
     }
+
+
+
+    private function aasort (&$array, $key, $descending = false) {
+        $sorter=array();
+        $ret=array();
+        reset($array);
+        foreach ($array as $ii => $va) {
+            $sorter[$ii]=$va[$key];
+        }
+        if ($descending) arsort($sorter);
+        else asort($sorter);
+        foreach ($sorter as $ii => $va) {
+            $ret[$ii]=$array[$ii];
+        }
+        $array=$ret;
+    }
+
+
+
+
 
 //    private function queueEmail($gid, $eid, $subject, $message, $to, $from){
 //        if (!isset($expense->type))
