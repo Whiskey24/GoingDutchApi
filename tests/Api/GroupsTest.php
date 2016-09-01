@@ -12,10 +12,10 @@ class GroupsTest extends \PHPUnit_Framework_TestCase
 {
     protected $client;
 
-    protected $knownuser  = array('user_id' => 1, 'name' => 'whiskey', 'pass' => 'testpassword');
-    protected $knownuser2 = array('user_id' => 2, 'name' => 'monc', 'email' => 'exitspam-daan@yahoo.com', 'pass' => 'testpassword');
-    protected $knownuser3 = array('user_id' => 3, 'name' => 'jeepee', 'email' => 'exitspam-jp@yahoo.com', 'pass' => 'testpassword');
-    protected $knownuser4 = array('user_id' => 4, 'name' => 'martijn', 'email' => 'exitspam-martijn@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser  = array('user_id' => 1, 'name' => 'exitspam-bert@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser2 = array('user_id' => 2, 'name' => 'exitspam-daan@yahoo.com', 'email' => 'exitspam-daan@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser3 = array('user_id' => 3, 'name' => 'exitspam-jp@yahoo.com', 'email' => 'exitspam-jp@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser4 = array('user_id' => 4, 'name' => 'exitspam-martijn@yahoo.com', 'email' => 'exitspam-martijn@yahoo.com', 'pass' => 'testpassword');
     protected $unknownuser = array('name' => 'whiskea', 'pass' => 'testpassword');
     protected $gid = 1;
     protected $eid = 1;

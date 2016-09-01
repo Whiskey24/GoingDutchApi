@@ -8,7 +8,7 @@ class ExpensesTest extends \PHPUnit_Framework_TestCase
 {
     protected $client;
 
-    protected $knownuser = array('name' => 'whiskey', 'pass' => 'testpassword');
+    protected $knownuser = array('name' => 'exitspam-bert@yahoo.com', 'pass' => 'testpassword');
     protected $unknownuser = array('name' => 'whiskea', 'pass' => 'testpassword');
     protected $gid = 1;
     protected $eid = 1;

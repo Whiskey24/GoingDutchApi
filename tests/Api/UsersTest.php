@@ -8,10 +8,10 @@ class UsersTest extends \PHPUnit_Framework_TestCase
 {
     protected $client;
 
-    protected $knownuser = array('name' => 'whiskey', 'email' => 'exitspam-bert@yahoo.com', 'pass' => 'testpassword');
-    protected $knownuser2 = array('user_id' => 2, 'name' => 'monc', 'email' => 'exitspam-daan@yahoo.com', 'pass' => 'testpassword');
-    protected $knownuser3 = array('user_id' => 3, 'name' => 'jeepee', 'email' => 'exitspam-jp@yahoo.com', 'pass' => 'testpassword');
-    protected $knownuser4 = array('user_id' => 4, 'name' => 'martijn', 'email' => 'exitspam-martijn@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser = array('name' => 'exitspam-bert@yahoo.com', 'email' => 'exitspam-bert@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser2 = array('user_id' => 2, 'name' => 'exitspam-daan@yahoo.com', 'email' => 'exitspam-daan@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser3 = array('user_id' => 3, 'name' => 'exitspam-jp@yahoo.com', 'email' => 'exitspam-jp@yahoo.com', 'pass' => 'testpassword');
+    protected $knownuser4 = array('user_id' => 4, 'name' => 'exitspam-martijn@yahoo.com', 'email' => 'exitspam-martijn@yahoo.com', 'pass' => 'testpassword');
     protected $unknownuser = array('name' => 'whiskea', 'pass' => 'testpassword');
     protected $uidNotInOwnGroups = 999;
 
@@ -151,7 +151,7 @@ class UsersTest extends \PHPUnit_Framework_TestCase
         }
 
         // restore old values
-        $response = $this->client->request('PUT', "/user/{$uid}/details", ['auth' => [$newDetails['nickName'], $this->knownuser['pass']], 'json' => $existingDetails]);
+        $response = $this->client->request('PUT', "/user/{$uid}/details", ['auth' => [$newDetails['email'], $this->knownuser['pass']], 'json' => $existingDetails]);
     }
 
     public function testEmailExists() {
