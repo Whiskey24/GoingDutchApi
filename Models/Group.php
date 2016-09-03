@@ -39,7 +39,7 @@ class Group
 
     function getExpenses($gid)
     {
-        $sql = $this->readExpensesSql . "ORDER BY expense_date DESC, eid DESC";
+        $sql = $this->readExpensesSql . "ORDER BY expense_date DESC, eid DESC LIMIT 100";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(array(':gid' => $gid));
         // put the results in an array with gid as key
@@ -286,7 +286,12 @@ class Group
         // get current group members to avoid adding twice
         $memberList = $this->getGroupUserIds($gid);
 
+        // previously removed members are treated differently
+        $removedMemberList = $this->getGroupRemovedUserIds($gid);
+
         $added = 0;
+        $addRemovedUsers = array();
+
         // this could be optimized into a single query for speed
         $sql = "INSERT INTO users_groups (user_id, group_id, sort, role_id, join_date)
                 VALUES (:user_id, :group_id, :sort, :role_id, FROM_UNIXTIME(:submitted))";
@@ -296,6 +301,11 @@ class Group
             if (in_array($invitee['user_id'], $memberList))
                 continue;
 
+            if (in_array($invitee['user_id'], $removedMemberList)) {
+                $addRemovedUsers[] = $invitee['user_id'];
+                continue;
+            }
+
             $stmt->execute(
                 array(
                     ':user_id' => $invitee['user_id'],
@@ -303,6 +313,18 @@ class Group
                     ':sort' => 0,
                     ':role_id' => 4,
                     ':submitted' => time()
+                )
+            );
+            $added++;
+        }
+
+        $sql = "UPDATE users_groups SET removed=0 WHERE user_id=:user_id AND group_id=:group_id";
+        $stmt = Db::getInstance()->prepare($sql);
+        foreach ($addRemovedUsers as $rUser) {
+            $stmt->execute(
+                array(
+                    ':user_id' => $rUser,
+                    ':group_id' => $gid,
                 )
             );
             $added++;
@@ -418,7 +440,7 @@ class Group
             return json_encode($response, JSON_NUMERIC_CHECK);
         }
 
-        error_log("Trying to delete {$dUid} in group {$gid}");
+        // error_log("Trying to delete {$dUid} in group {$gid}");
 
         //$uidList = implode(',', $body->user_ids);
         $uidList = $dUid;
@@ -1001,7 +1023,7 @@ class Group
 
     private function getGroupUserIds($gid)
     {
-        $sql = "SELECT user_id FROM users_groups WHERE group_id = :group_id";
+        $sql = "SELECT user_id FROM users_groups WHERE group_id = :group_id AND removed = 0";
         $stmt = Db::getInstance()->prepare($sql);
         $stmt->execute(
             array(
@@ -1012,6 +1034,18 @@ class Group
         return $result;
     }
 
+    private function getGroupRemovedUserIds($gid)
+    {
+        $sql = "SELECT user_id FROM users_groups WHERE group_id = :group_id AND removed = 1";
+        $stmt = Db::getInstance()->prepare($sql);
+        $stmt->execute(
+            array(
+                ':group_id' => $gid
+            )
+        );
+        $result = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+        return $result;
+    }
 
 
     private function aasort (&$array, $key, $descending = false) {
